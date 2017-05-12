@@ -10,9 +10,10 @@ P(Y=y|X=x)
 #include <cstdio>
 #include <cstdlib>
 #include <iostream>
+#include <fstream>
+#include <sstream>
 #include <iomanip>
 #include <algorithm>
-#include <fstream>
 #include <string>
 #include <vector>
 #include <queue>
@@ -153,7 +154,7 @@ public:
 			for(size_t x=tmp.size();x--;) tmperr.push_back((double)(x+1)/tmp.size()-p(tmp[x]));
 			double e=safeSumSqr(tmperr,0,tmperr.size());
 			if(e<err){err=e;c=f;}
-			cout<<"distribution type "<<(int)(f)<<" error: "<<e<<endl;
+			//cout<<"distribution type "<<(int)(f)<<" error: "<<e<<endl;
 			//for(size_t x=tmp.size();x--;) cout<<" "<<(double)(x+1)/tmp.size()<<" "<<p(tmp[x])<<endl;
 		}
 		f=c;
@@ -280,6 +281,14 @@ public:
 	}
 };
 // */
+string i2s(int i)
+{
+	vector<char> t; if(i<0){t.push_back('-');i=-i;}
+	do{t.push_back('0'+(i%10));i/=10;}while(i);
+	string rtv;
+	while(t.size()){ rtv+=t.back(); t.pop_back(); }
+	return rtv;
+}
 vector<string> parseDataRow(const string &s,const char del)
 {
 	vector<string> rtv;
@@ -311,13 +320,47 @@ vector<row> parseData(const string &fname,const char del)
 	cout<<"row: "<<rtv.size()<<endl;
 	return rtv;
 }
+vector<row> parseData_ml(const string &fname,const char del,const map<string,string > &convert,const string &mapTo=".")
+{
+	ifstream iii(fname,ios::binary);
+	vector<row> rtv;
+	for(string s;getline(iii,s);)
+	{
+		vector<string> v;
+		string c="",t;
+		for(size_t x=0;s[x];x++)
+		{
+			if(s[x]==del){ if(c=="") c=t; else v.push_back(t); t=""; }
+			else t+=s[x];
+		}
+		if(t.back()<32) t.pop_back();
+		v.push_back(t); auto it=convert.find(c);
+		/* /
+		cout<<c<<endl;
+		{
+			int sd=1,sm=1,sy=1; sscanf(c.c_str(),"D-%d/%d/%d",&sd,&sm,&sy);
+			int x=((sy*12)+sm-1)*31+sd-1;
+			int d=(x)%31+1,m=(x/31)%12+1,y=x/31/12;
+			string t="D-"; t+=i2s(d); t+='/'; t+=i2s(m); t+='/'; t+=i2s(y);
+			cout<<"get "<<t<<"$"<<endl;
+		}
+		// */
+		if(it==convert.end()){ if(mapTo!="") continue; }else c=it->second;
+		//cout<<"known as "<<c<<endl;
+		rtv.push_back(row(v,c));
+	}
+	cout<<"row: "<<rtv.size()<<endl;
+	return rtv;
+}
 
 int test0(const int argc,const char *argv[]);
 int test1(const int argc,const char *argv[]);
+int test2(const int argc,const char *argv[]);
+map<string,string> parseAttr_ml(const string &fname);
 
 int main(const int argc,const char *argv[])
 {
-	return test1(argc,argv);
+	return test2(argc,argv);
 	return 0;
 }
 
@@ -343,5 +386,82 @@ int test1(const int argc,const char *argv[])
 	for(size_t x=a.size();x--;)cout<<a[x]<<endl;
 	for(int x=3;x<argc;x++) cout<<argv[x]<<" -> "<<xd.distinct(row(parseDataRow(argv[x],argv[1][0]),""))<<endl;
 	return 0;
+}
+int test2(const int argc,const char *argv[])
+{
+	if(argc<5){cout<<"usage: "<<argv[0]<<"  delim  file-train  file-test  attr"<<endl;return 0;}
+	nb xd;
+	map<string,string> conv=parseAttr_ml(argv[4]);
+	xd.reset(parseData_ml(argv[2],argv[1][0],conv));
+	vector<int> a=xd.ff();
+	for(size_t x=a.size();x--;)cout<<a[x]<<endl;
+	vector<row> test=parseData_ml(argv[3],argv[1][0],conv,"");
+	for(size_t x=0,xs=test.size();x<xs;x++) cout<<test[x].output()<<" "<<xd.distinct(test[x])<<endl;
+	return 0;
+}
+
+vector<string> parseAttr_ml_expand_to(const string &src,const string &dst)
+{
+	int sd=1,sm=1,sy=1; sscanf(src.c_str(),"D-%d/%d/%d",&sd,&sm,&sy);
+	int dd=1,dm=1,dy=1; sscanf(dst.c_str(),"D-%d/%d/%d",&dd,&dm,&dy);
+	int s=((sy*12)+sm-1)*31+sd-1;
+	int f=((dy*12)+dm-1)*31+dd-1;
+	vector<string> rtv;
+	for(int x=s;x<=f;x++)
+	{
+		int d=(x)%31+1,m=(x/31)%12+1,y=x/31/12;
+		string t="D-"; t+=i2s(d); t+='/'; t+=i2s(m); t+='/'; t+=i2s(y);
+		rtv.push_back(t);
+	}
+	return rtv;
+}
+map<string,string> parseAttr_ml(const string &fname)
+{
+	ifstream iii(fname,ios::binary);
+	vector<string> v;{string t;while(iii>>t)v.push_back(t);}iii.close();
+	map<string,vector<string> >rtv_;
+	enum states{notyet,strt,parsing};
+	states stat=states::notyet;
+	string tmpc;
+	for(size_t x=0,xs=v.size();x<xs;x++)
+	{
+		switch(stat)
+		{
+		case states::notyet:
+			if(x+1<xs && v[x]=="--"&&v[x+1]=="Class"){tmpc=v[x+2];rtv_[tmpc]=vector<string>(0);stat=states::strt;}
+			break;
+		case states::strt:
+		{
+			int d,m,y;
+			if(sscanf(v[x].c_str(),"D-%d/%d/%d",&d,&m,&y)==3){x--;stat=states::parsing;
+				//cout<<"S "<<v[x]<<endl;
+			}
+		}
+			break;
+		case states::parsing:
+		{
+			//cout<<"P "<<v[x]<<endl;
+			int d,m,y;
+			if(sscanf(v[x].c_str(),"D-%d/%d/%d",&d,&m,&y)!=3){x--;stat=states::notyet;
+				//cout<<" bye"<<endl;
+			}else{
+				bool single=(x+1>=xs || v[x+1]!="to");
+				vector<string> tmp=parseAttr_ml_expand_to(v[x],single?v[x]:v[x+2]);
+				if(!single) x+=2;
+				for(size_t z=0,zs=tmp.size();z<zs;z++) rtv_[tmpc].push_back(tmp[z]);
+			}
+		}
+			break;
+		default:
+			break;
+		}
+	}
+	map<string,string> rtv;
+	for(auto it=rtv_.begin();it!=rtv_.end();it++)
+	{
+		vector<string> &sv=it->second;
+		for(size_t x=sv.size();x--;) rtv[sv[x] ]=it->first;
+	}
+	return rtv;
 }
 
