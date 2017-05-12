@@ -1,5 +1,10 @@
 
 // c++11
+/*
+P(Y=y|X=x)
+=P(Y=y,X=x)/P(X=x)
+=P(Y=y)P(X=x|Y=y)/P(X=x)
+*/
 
 #include <cstdio>
 #include <cstdlib>
@@ -86,6 +91,7 @@ public:
 	inline double uquadr(double val)const{return uquadraticCDF((val-mean)*M_SQRT3_10/sd);} // mean,variance
 	cdf():f(cdftype::normal){setMV(0,1);}
 	cdf(double m,double v,cdftype f=cdftype::normal){setMV(m,v);}
+	cdf(const vector<double> &rhs){setBest(rhs);}
 	inline void setMV(double m,double v){setMean(m);setVar(v);}
 	inline void setType(const cdftype t){f=t;}
 	inline cdftype getType()const{return f;}
@@ -122,7 +128,7 @@ public:
 			for(size_t x=tmp.size();x--;) tmperr.push_back((double)(x+1)/tmp.size()-p(tmp[x]));
 			double e=safeSumSqr(tmperr,0,tmperr.size());
 			if(e<err){err=e;c=f;}
-			cout<<"distribution type error: "<<e<<"  "<<(int)(f)<<endl;
+			cout<<"distribution type "<<(int)(f)<<" error: "<<e<<endl;
 			//for(size_t x=tmp.size();x--;) cout<<" "<<(double)(x+1)/tmp.size()<<" "<<p(tmp[x])<<endl;
 		}
 		f=c;
@@ -173,6 +179,7 @@ class nb
 {
 	vector<cdf> f;
 	map<string,vector<row> > cs;
+	map<string,vector<cdf> > fs;
 public:
 	nb(){};
 	nb(const vector<row> &data){reset(data);}
@@ -195,6 +202,22 @@ public:
 				if(sscanf(data[x].input(i).c_str(),"%lf",&d)==1) t.push_back(d);
 			}
 			f[i].setBest(t);
+		}
+		for(auto it=cs.begin();it!=cs.end();it++)
+		{
+			cout<<"class "<<it->first<<endl;
+			vector<row> &DATA=it->second;
+			vector<cdf> &F=fs[it->first]=vector<cdf>(f.size());
+			for(size_t i=F.size();i--;)
+			{
+				vector<double> t;
+				for(size_t x=0,xs=DATA.size();x<xs;x++)
+				{
+					register double d;
+					if(sscanf(DATA[x].input(i).c_str(),"%lf",&d)==1) t.push_back(d);
+				}
+				if(t.size()!=1) F[i].setBest(t);
+			}
 		}
 	}
 	vector<int> ff()const{vector<int> rtv; for(size_t x=f.size();x--;) rtv.push_back(f[x].getType()); return rtv;}
