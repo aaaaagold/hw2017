@@ -66,6 +66,9 @@ const double M_SQRT1_12=sqrt(1.0/12);
 #ifndef M_SQRT3_10
 const double M_SQRT3_10=sqrt(3.0/10);
 #endif
+#ifndef M_SQRT1_Exp
+const double M_SQRT1_Exp=sqrt(1/exp(1));
+#endif
 inline double normalCDF(double value){ return 0.5*erfc(-value*M_SQRT1_2); } // N(0,1)
 inline double uniformalCDF(double value){ return 1; } // U[0,1]
 inline double exponentialCDF(double value){ return 1-exp(-value); } // lambda=1
@@ -79,7 +82,7 @@ class cdf
 public:
 	inline double normal(double val)const{return normalCDF((val-mean)/sd);} // mean,variance
 	inline double unifor(double val)const{return ((val-mean)*M_SQRT1_12/sd+0.5);} // mean,variance
-	inline double expone(double val)const{return exponentialCDF(val/mean);} // mean
+	inline double expone(double val)const{return exponentialCDF((val-mean)/sd+1);} // mean
 	inline double uquadr(double val)const{return uquadraticCDF((val-mean)*M_SQRT3_10/sd);} // mean,variance
 	cdf():f(cdftype::normal){setMV(0,1);}
 	cdf(double m,double v,cdftype f=cdftype::normal){setMV(m,v);}
