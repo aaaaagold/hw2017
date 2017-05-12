@@ -51,6 +51,10 @@ inline double safeSumSqr(const vector<double> &rhs,size_t b,size_t e)
 {
 	return safeOp(rhs,b,e,sqr);
 }
+inline double safeSumAbs(const vector<double> &rhs,size_t b,size_t e)
+{
+	return safeOp(rhs,b,e,abs);
+}
 
 enum cdftype{normal,uniform,exponent,uqua,size};
 #ifndef M_SQRT1_2
@@ -70,28 +74,18 @@ class cdf
 {
 	double mean,var,sd;
 	cdftype f;
-	class typeit
-	{
-		cdftype f;
-	public:
-		typeit():f(cdftype::normal){}
-		void setFirst(){f=cdftype::normal;}
-		bool isEnd const(){return f==cdftype::size;}
-		cdftype getVal const(){return f;}
-		cdftype &operator++(){return f=cdftype(f+1);} // ++f
-		cdftype operator++(int){cdftype r=f;f=cdftype(f+1);return r;} // f++
-	};
 	inline void setMean(double m){mean=m;}
 	inline void setVar(double v){var=v;sd=sqrt(var);}
 public:
 	inline double normal(double val)const{return normalCDF((val-mean)/sd);} // mean,variance
-	inline double unifor(double val)const{return (M_SQRT1_12/sd);} // variance
+	inline double unifor(double val)const{return ((val-mean)*M_SQRT1_12/sd+0.5);} // mean,variance
 	inline double expone(double val)const{return exponentialCDF(val/mean);} // mean
 	inline double uquadr(double val)const{return uquadraticCDF((val-mean)*M_SQRT3_10/sd);} // mean,variance
 	cdf():f(cdftype::normal){setMV(0,1);}
 	cdf(double m,double v,cdftype f=cdftype::normal){setMV(m,v);}
 	inline void setMV(double m,double v){setMean(m);setVar(v);}
 	inline void setType(const cdftype t){f=t;}
+	inline cdftype getType()const{return f;}
 	double p(double v)const
 	{
 		double rtv=0;
@@ -107,23 +101,28 @@ public:
 	}
 	void setBest(const vector<double> &rhs)
 	{
-		vector<sortByAbs<double> > tmp(rhs.size()); for(size_t x=rhs.size();x--;) tmp[x]=rhs[x];
-		sort(tmp.begin(),tmp.end());
-		mean=safeSum(tmp)/tmp.size();
-		var=safeSumSqr(tmp)/tmp.size();
-		cdftype c=cdftype::normal;
-		double err=1e9;
-		for(typeit t;t!=isEnd();t++)
 		{
-			f=t.getVal();
-			vector<double> tmperr;
-			for(size_t x=tmp.size();x--;)
-			{
-				double d=lower_bound(tmp.begin(),tmp.end(),tmp[x])-tmp.begin();
-				d/=tmp.size();
-				tmperr.push_back(d-p(tmp[x]));
-			}
+			vector<sortByAbs<double> > tmp(rhs.size()); for(size_t x=tmp.size();x--;) tmp[x]=rhs[x];
+			sort(tmp.begin(),tmp.end());
+			vector<double> t(tmp.size()); for(size_t x=t.size();x--;) t[x]=tmp[x].val();
+			setMean(safeSum(t,0,t.size())/t.size());
+			for(size_t x=t.size();x--;) t[x]-=mean;
+			setVar(safeSumSqr(t,0,t.size())/t.size());
 		}
+		vector<double> tmp=rhs; sort(tmp.begin(),tmp.end());
+		cdftype c;
+		double err=tmp.size();
+		for(cdftype t;t!=cdftype::size;t=cdftype(t+1))
+		{
+			f=t;
+			vector<double> tmperr;
+			for(size_t x=tmp.size();x--;) tmperr.push_back((double)(x+1)/tmp.size()-p(tmp[x]));
+			double e=safeSumSqr(tmperr,0,tmperr.size());
+			if(e<err){err=e;c=f;}
+			cout<<e<<"  "<<(int)(f)<<endl;
+			for(size_t x=tmp.size();x--;) cout<<" "<<(double)(x+1)/tmp.size()<<" "<<p(tmp[x])<<endl;
+		}
+		f=c;
 	}
 };
 
@@ -160,6 +159,8 @@ class row
 	vector<string> i;
 	string o;
 public:
+	row(){}
+	row(const vector<string> &in,const string &out){set(in,out);}
 	void set(const vector<string> &in,const string &out){i=in;o=out;}
 	size_t isize()const{return i.size();}
 	const string &input(size_t n)const{return i[n];}
@@ -176,13 +177,13 @@ public:
 	{
 		cs.clear();
 		if(data.size()) f.resize(data[0].isize()); else return;
-		for(size_t x=0,xs=data.size();x<xs;x++)
+		for(size_t x=data.size();x--;)
 		{
 			string t=data[x].output();
 			if(cs.find(t)!=cs.end()) cs[t].push_back(data[x]);
 			else cs[t]=vector<row>(1,data[x]);
 		}
-		for(size_t i=0,is=f.size();i<is;i++)
+		for(size_t i=f.size();i--;)
 		{
 			vector<double> t;
 			for(size_t x=0,xs=data.size();x<xs;x++)
@@ -193,6 +194,7 @@ public:
 			f[i].setBest(t);
 		}
 	}
+	vector<int> ff()const{vector<int> rtv; for(size_t x=f.size();x--;) rtv.push_back(f[x].getType()); return rtv;}
 	void learn_continuous(const vector<double> &n)
 	{
 		
@@ -200,7 +202,35 @@ public:
 };
 // */
 
+vector<row> parseData(const string &fname,const char del)
+{
+	ifstream iii(fname,ios::binary);
+	vector<row> rtv;
+	for(string s;getline(iii,s);)
+	{
+		vector<string> v;
+		string t;
+		for(size_t x=0;s[x];x++)
+		{
+			if(s[x]==del){ v.push_back(t); t=""; }
+			else t+=s[x];
+		}
+		rtv.push_back(row(v,t));
+	}
+	cout<<rtv.size()<<endl;
+	return rtv;
+}
+
+int test0(const int argc,const char *argv[]);
+int test1(const int argc,const char *argv[]);
+
 int main(const int argc,const char *argv[])
+{
+	return test1(argc,argv);
+	return 0;
+}
+
+int test0(const int argc,const char *argv[])
 {
 	if(argc==1){return 0;}
 	double t;if(sscanf(argv[1],"%lf",&t)!=1) return 1;
@@ -211,6 +241,14 @@ int main(const int argc,const char *argv[])
 	vector<double> tmp(2,t);
 	printf("%f\n",safeOp(tmp,0,2,log));
 	printf("%d\n",int(sizeof(cdftype)));
+	return 0;
+}
+int test1(const int argc,const char *argv[])
+{
+	nb xd;
+	xd.reset(parseData(argv[2],argv[1][0]));
+	vector<int> a=xd.ff();
+	for(size_t x=a.size();x--;)cout<<a[x]<<endl;
 	return 0;
 }
 
