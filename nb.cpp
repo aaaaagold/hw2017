@@ -46,7 +46,7 @@ inline double safeSum(const vector<double> &rhs,size_t b,size_t e)
 	return safeOp(rhs,b,e,ori);
 }
 
-enum cdftype{normal,uniform,exponent,uqua};
+enum cdftype{normal,uniform,exponent,uqua,size};
 #ifndef M_SQRT1_2
 const double M_SQRT1_2=sqrt(0.5);
 #endif
@@ -64,6 +64,17 @@ class cdf
 {
 	double mean,var,sd;
 	cdftype f;
+	class typeit
+	{
+		cdftype f;
+	public:
+		typeit():f(cdftype::normal){}
+		void setFirst(){f=cdftype::normal;}
+		bool isEnd(){return f==cdftype::size;}
+		cdftype getVal(){return f;}
+		cdftype &operator++(){f=cdftype(f+1);return f;} // ++f
+		cdftype operator++(int){cdftype r=f;f=cdftype(f+1);return r;} // f++
+	};
 	inline void setMean(double m){mean=m;}
 	inline void setVar(double v){var=v;sd=sqrt(var);}
 public:
@@ -88,8 +99,13 @@ public:
 		}
 		return rtv;
 	}
+	void setBest(const vector<double> &rhs)
+	{
+		
+	}
 };
 
+/* /
 template<class I,class O>
 class row
 {
@@ -97,6 +113,9 @@ class row
 	O o;
 public:
 	void set(const vector<I> &in,const O out){i=in;o=out;}
+	size_t size(){return i.size();}
+	const I &input(size_t n)const{return i[n];}
+	const O &output()const{return o;}
 };
 template<class I,class O>
 class nb // naiveBayesian
@@ -107,9 +126,57 @@ public:
 	nb(const vector<row<I,O> > &data){reset(data);}
 	void reset(const vector<row<I,O> > &data)
 	{
+	}
+	void learn_continuous(const vector<double> &n)
+	{
+	}
+};
+// */
+// suppose <string,...> => string
+class row
+{
+	vector<string> i;
+	string o;
+public:
+	void set(const vector<string> &in,const string &out){i=in;o=out;}
+	size_t isize()const{return i.size();}
+	const string &input(size_t n)const{return i[n];}
+	const string &output()const{return o;}
+};
+class nb
+{
+	vector<cdf> f;
+	map<string,vector<row> > cs;
+public:
+	nb(){};
+	nb(const vector<row> &data){reset(data);}
+	void reset(const vector<row> &data)
+	{
+		cs.clear();
+		if(data.size()) f.resize(data[0].isize()); else return;
+		for(size_t x=0,xs=data.size();x<xs;x++)
+		{
+			string t=data[x].output();
+			if(cs.find(t)!=cs.end()) cs[t].push_back(data[x]);
+			else cs[t]=vector<row>(1,data[x]);
+		}
+		for(size_t i=0,is=f.size();i<is;i++)
+		{
+			vector<double> t;
+			for(size_t x=0,xs=data.size();x<xs;x++)
+			{
+				register double d;
+				if(sscanf(data[x].input(i).c_str(),"%lf",&d)==1) t.push_back(d);
+			}
+			
+		}
+	}
+	void learn_continuous(const vector<double> &n)
+	{
 		
 	}
 };
+// */
 
 int main(const int argc,const char *argv[])
 {
@@ -121,6 +188,7 @@ int main(const int argc,const char *argv[])
 	printf("%f\n", uquadraticCDF(t));
 	vector<double> tmp(2,t);
 	printf("%f\n",safeOp(tmp,0,2,log));
+	printf("%d\n",int(sizeof(cdftype)));
 	return 0;
 }
 
