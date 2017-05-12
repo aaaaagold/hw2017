@@ -64,6 +64,7 @@ inline double safeSumAbs(const vector<double> &rhs,size_t b,size_t e)
 }
 
 enum cdftype{normal,uniform,exponent,uqua,size};
+//enum cdftype{normal,size};
 #ifndef M_SQRT1_2
 const double M_SQRT1_2=sqrt(0.5);
 #endif
@@ -79,6 +80,7 @@ const double M_SQRT1_Exp=sqrt(1/exp(1));
 #ifndef M_SQRT1_2Pi
 const double M_SQRT1_2Pi=sqrt(0.125/atan(1));
 #endif
+const double verySmall=1e-9;
 inline double normalCDF(double value){ return erfc(-value*M_SQRT1_2)*0.5; } // N(0,1)
 inline double uniformalCDF(double value){ return value<0?0:(value>1?1:value); } // U[0,1]
 inline double exponentialCDF(double value){ return value<0?0:(1-exp(-value)); } // lambda=1
