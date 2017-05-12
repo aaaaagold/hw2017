@@ -82,7 +82,7 @@ class cdf
 public:
 	inline double normal(double val)const{return normalCDF((val-mean)/sd);} // mean,variance
 	inline double unifor(double val)const{return ((val-mean)*M_SQRT1_12/sd+0.5);} // mean,variance
-	inline double expone(double val)const{return exponentialCDF((val-mean)/sd+1);} // mean
+	inline double expone(double val)const{return exponentialCDF((val-mean)/sd+1);} // mean,variance
 	inline double uquadr(double val)const{return uquadraticCDF((val-mean)*M_SQRT3_10/sd);} // mean,variance
 	cdf():f(cdftype::normal){setMV(0,1);}
 	cdf(double m,double v,cdftype f=cdftype::normal){setMV(m,v);}
@@ -122,8 +122,8 @@ public:
 			for(size_t x=tmp.size();x--;) tmperr.push_back((double)(x+1)/tmp.size()-p(tmp[x]));
 			double e=safeSumSqr(tmperr,0,tmperr.size());
 			if(e<err){err=e;c=f;}
-			cout<<e<<"  "<<(int)(f)<<endl;
-			for(size_t x=tmp.size();x--;) cout<<" "<<(double)(x+1)/tmp.size()<<" "<<p(tmp[x])<<endl;
+			cout<<"distribution type error: "<<e<<"  "<<(int)(f)<<endl;
+			//for(size_t x=tmp.size();x--;) cout<<" "<<(double)(x+1)/tmp.size()<<" "<<p(tmp[x])<<endl;
 		}
 		f=c;
 	}
@@ -220,7 +220,7 @@ vector<row> parseData(const string &fname,const char del)
 		}
 		rtv.push_back(row(v,t));
 	}
-	cout<<rtv.size()<<endl;
+	cout<<"row: "<<rtv.size()<<endl;
 	return rtv;
 }
 
@@ -235,7 +235,7 @@ int main(const int argc,const char *argv[])
 
 int test0(const int argc,const char *argv[])
 {
-	if(argc==1){return 0;}
+	if(argc==1){cout<<"usage: "<<argv[0]<<"  value"<<endl;return 0;}
 	double t;if(sscanf(argv[1],"%lf",&t)!=1) return 1;
 	printf("%f\n", normalCDF(t));
 	printf("%f\n", uniformalCDF(t));
@@ -248,6 +248,7 @@ int test0(const int argc,const char *argv[])
 }
 int test1(const int argc,const char *argv[])
 {
+	if(argc==1){cout<<"usage: "<<argv[0]<<"  delim  file"<<endl;return 0;}
 	nb xd;
 	xd.reset(parseData(argv[2],argv[1][0]));
 	vector<int> a=xd.ff();
