@@ -78,12 +78,10 @@ inline double normalCDF(double value){ return 0.5*erfc(-value*M_SQRT1_2); } // N
 inline double uniformalCDF(double value){ return 1; } // U[0,1]
 inline double exponentialCDF(double value){ return 1-exp(-value); } // lambda=1
 inline double uquadraticCDF(double value){ return 0.5*(1+value*value*value); } // x in [-1,1], pdf=(3/2)x^2, var=3/10
-class cdf
+class cdf //  default: N(0,1)
 {
 	double mean,var,sd;
 	cdftype f;
-	inline void setMean(double m){mean=m;}
-	inline void setVar(double v){var=v;sd=sqrt(var);}
 public:
 	inline double normal(double val)const{return normalCDF((val-mean)/sd);} // mean,variance
 	inline double unifor(double val)const{return ((val-mean)*M_SQRT1_12/sd+0.5);} // mean,variance
@@ -92,6 +90,8 @@ public:
 	cdf():f(cdftype::normal){setMV(0,1);}
 	cdf(double m,double v,cdftype f=cdftype::normal){setMV(m,v);}
 	cdf(const vector<double> &rhs){setBest(rhs);}
+	inline void setMean(double m){mean=m;}
+	inline void setVar(double v){var=v;sd=sqrt(var);}
 	inline void setMV(double m,double v){setMean(m);setVar(v);}
 	inline void setType(const cdftype t){f=t;}
 	inline cdftype getType()const{return f;}
@@ -193,6 +193,7 @@ public:
 			if(cs.find(t)!=cs.end()) cs[t].push_back(data[x]);
 			else cs[t]=vector<row>(1,data[x]);
 		}
+		cout<<"global"<<endl;
 		for(size_t i=f.size();i--;)
 		{
 			vector<double> t;
@@ -217,6 +218,7 @@ public:
 					if(sscanf(DATA[x].input(i).c_str(),"%lf",&d)==1) t.push_back(d);
 				}
 				if(t.size()!=1) F[i].setBest(t);
+				else F[i].setMean(t[0]);
 			}
 		}
 	}
