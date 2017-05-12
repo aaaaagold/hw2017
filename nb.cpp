@@ -4,6 +4,7 @@
 P(Y=y|X=x)
 =P(Y=y,X=x)/P(X=x)
 =P(Y=y)P(X=x|Y=y)/P(X=x)
+=(P(Y=y) **P(Xi=xi|Y=y)** )/P(X=x)
 */
 
 #include <cstdio>
@@ -74,19 +75,30 @@ const double M_SQRT3_10=sqrt(3.0/10);
 #ifndef M_SQRT1_Exp
 const double M_SQRT1_Exp=sqrt(1/exp(1));
 #endif
+#ifndef M_SQRT1_2Pi
+const double M_SQRT1_2Pi=sqrt(0.125/atan(1));
+#endif
 inline double normalCDF(double value){ return erfc(-value*M_SQRT1_2)*0.5; } // N(0,1)
 inline double uniformalCDF(double value){ return value<0?0:(value>1?1:value); } // U[0,1]
 inline double exponentialCDF(double value){ return value<0?0:(1-exp(-value)); } // lambda=1
 inline double uquadraticCDF(double value){ return value<-1?0:(value>1?1:(1+value*value*value)*0.5); } // x in [-1,1], pdf=(3/2)x^2, var=3/10
+inline double normalPDF(double value){ return M_SQRT1_2Pi*exp(-value*value*0.5); } // N(0,1)
+inline double uniformalPDF(double value){ return value<0?0:(value>1?0:1); } // U[0,1]
+inline double exponentialPDF(double value){ return value<0?0:exp(-value); } // lambda=1
+inline double uquadraticPDF(double value){ return value*value>1?0:value*value*1.5; } // x in [-1,1], pdf=(3/2)x^2, var=3/10
 class cdf //  default: N(0,1)
 {
 	double mean,var,sd;
 	cdftype f;
 public:
 	inline double normal(double val)const{return normalCDF((val-mean)/sd);} // mean,variance
-	inline double unifor(double val)const{return ((val-mean)*M_SQRT1_12/sd+0.5);} // mean,variance
+	inline double unifor(double val)const{return uniformalCDF((val-mean)*M_SQRT1_12/sd+0.5);} // mean,variance
 	inline double expone(double val)const{return exponentialCDF((val-mean)/sd+1);} // mean,variance
 	inline double uquadr(double val)const{return uquadraticCDF((val-mean)*M_SQRT3_10/sd);} // mean,variance
+	inline double dnormal(double val)const{return normalPDF((val-mean)/sd);} // mean,variance
+	inline double dunifor(double val)const{return uniformalPDF((val-mean)*M_SQRT1_12/sd+0.5);} // mean,variance
+	inline double dexpone(double val)const{return exponentialPDF((val-mean)/sd+1);} // mean,variance
+	inline double duquadr(double val)const{return uquadraticPDF((val-mean)*M_SQRT3_10/sd);} // mean,variance
 	cdf():f(cdftype::normal){setMV(0,1);}
 	cdf(double m,double v,cdftype f=cdftype::normal){setMV(m,v);}
 	cdf(const vector<double> &rhs){setBest(rhs);}
@@ -95,6 +107,19 @@ public:
 	inline void setMV(double m,double v){setMean(m);setVar(v);}
 	inline void setType(const cdftype t){f=t;}
 	inline cdftype getType()const{return f;}
+	double dp(double v)const
+	{
+		double rtv=0;
+		switch(f)
+		{
+		default: break;
+		case cdftype::normal: rtv=dnormal(v); break;
+		case cdftype::uniform: rtv=dunifor(v); break;
+		case cdftype::exponent: rtv=dexpone(v); break;
+		case cdftype::uqua: rtv=duquadr(v); break;
+		}
+		return rtv;
+	}
 	double p(double v)const
 	{
 		double rtv=0;
@@ -180,24 +205,30 @@ class nb
 	vector<cdf> f;
 	map<string,vector<row> > cs;
 	map<string,vector<cdf> > fs;
+	map<string,double> cp;
+	size_t total;
 public:
-	nb(){};
+	nb(){total=0;};
 	nb(const vector<row> &data){reset(data);}
 	void reset(const vector<row> &data)
 	{
 		cs.clear();
-		if(data.size()) f.resize(data[0].isize()); else return;
-		for(size_t x=data.size();x--;)
+		if(total=data.size()) f.resize(data[0].isize()); else return;
 		{
-			string t=data[x].output();
-			if(cs.find(t)!=cs.end()) cs[t].push_back(data[x]);
-			else cs[t]=vector<row>(1,data[x]);
+			map<string,size_t> tcp;
+			for(size_t x=total;x--;)
+			{
+				string t=data[x].output();
+				if(tcp.find(t)!=tcp.end()){ tcp[t]++; cs[t].push_back(data[x]); }
+				else{ tcp[t]=1; cs[t]=vector<row>(1,data[x]); }
+			}
+			for(auto it=tcp.begin();it!=tcp.end();it++) cp[it->first]=(double)(it->second)/total;
 		}
 		cout<<"global"<<endl;
 		for(size_t i=f.size();i--;)
 		{
 			vector<double> t;
-			for(size_t x=0,xs=data.size();x<xs;x++)
+			for(size_t x=0,xs=total;x<xs;x++)
 			{
 				register double d;
 				if(sscanf(data[x].input(i).c_str(),"%lf",&d)==1) t.push_back(d);
@@ -222,14 +253,45 @@ public:
 			}
 		}
 	}
+	string distinct(const row &q)
+	{
+		//map<string,double> ps;
+		string rtv="";
+		double rtvp=0;
+		for(auto it=fs.begin();it!=fs.end();it++)
+		{
+			vector<double> p=vector<double>(1,cp[it->first]);
+			vector<cdf> &c=it->second;
+			for(size_t x=c.size();x--;)
+			{
+				register double t;
+				if(sscanf(q.input(x).c_str(),"%lf",&t)==1) p.push_back(c[x].dp(t));
+			}
+			{
+				register double t=safeSumLog(p,0,p.size());
+				if(t>rtvp || rtv==""){ rtvp=t; rtv=it->first; }
+			}
+		}
+		return rtv;
+	}
 	vector<int> ff()const{vector<int> rtv; for(size_t x=f.size();x--;) rtv.push_back(f[x].getType()); return rtv;}
 	void learn_continuous(const vector<double> &n)
 	{
-		
 	}
 };
 // */
-
+vector<string> parseDataRow(const string &s,const char del)
+{
+	vector<string> rtv;
+	string t;
+	for(size_t x=0;s[x];x++)
+	{
+		if(s[x]==del){ rtv.push_back(t); t=""; }
+		else t+=s[x];
+	}
+	rtv.push_back(t);
+	return rtv;
+}
 vector<row> parseData(const string &fname,const char del)
 {
 	ifstream iii(fname,ios::binary);
@@ -243,6 +305,7 @@ vector<row> parseData(const string &fname,const char del)
 			if(s[x]==del){ v.push_back(t); t=""; }
 			else t+=s[x];
 		}
+		if(t.back()<32) t.pop_back();
 		rtv.push_back(row(v,t));
 	}
 	cout<<"row: "<<rtv.size()<<endl;
@@ -273,11 +336,12 @@ int test0(const int argc,const char *argv[])
 }
 int test1(const int argc,const char *argv[])
 {
-	if(argc==1){cout<<"usage: "<<argv[0]<<"  delim  file"<<endl;return 0;}
+	if(argc<3){cout<<"usage: "<<argv[0]<<"  delim  file  [query]"<<endl;return 0;}
 	nb xd;
 	xd.reset(parseData(argv[2],argv[1][0]));
 	vector<int> a=xd.ff();
 	for(size_t x=a.size();x--;)cout<<a[x]<<endl;
+	for(int x=3;x<argc;x++) cout<<argv[x]<<" -> "<<xd.distinct(row(parseDataRow(argv[x],argv[1][0]),""))<<endl;
 	return 0;
 }
 
