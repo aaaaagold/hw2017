@@ -74,10 +74,10 @@ const double M_SQRT3_10=sqrt(3.0/10);
 #ifndef M_SQRT1_Exp
 const double M_SQRT1_Exp=sqrt(1/exp(1));
 #endif
-inline double normalCDF(double value){ return 0.5*erfc(-value*M_SQRT1_2); } // N(0,1)
-inline double uniformalCDF(double value){ return 1; } // U[0,1]
-inline double exponentialCDF(double value){ return 1-exp(-value); } // lambda=1
-inline double uquadraticCDF(double value){ return 0.5*(1+value*value*value); } // x in [-1,1], pdf=(3/2)x^2, var=3/10
+inline double normalCDF(double value){ return erfc(-value*M_SQRT1_2)*0.5; } // N(0,1)
+inline double uniformalCDF(double value){ return value<0?0:(value>1?1:value); } // U[0,1]
+inline double exponentialCDF(double value){ return value<0?0:(1-exp(-value)); } // lambda=1
+inline double uquadraticCDF(double value){ return value<-1?0:(value>1?1:(1+value*value*value)*0.5); } // x in [-1,1], pdf=(3/2)x^2, var=3/10
 class cdf //  default: N(0,1)
 {
 	double mean,var,sd;
