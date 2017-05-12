@@ -18,6 +18,8 @@ using namespace std;
 template<class T>
 inline T ori(const T n){return n;}
 template<class T>
+inline T sqr(const T n){return n*n;}
+template<class T>
 class sortByAbs
 {
 	T v;
@@ -45,6 +47,10 @@ inline double safeSum(const vector<double> &rhs,size_t b,size_t e)
 {
 	return safeOp(rhs,b,e,ori);
 }
+inline double safeSumSqr(const vector<double> &rhs,size_t b,size_t e)
+{
+	return safeOp(rhs,b,e,sqr);
+}
 
 enum cdftype{normal,uniform,exponent,uqua,size};
 #ifndef M_SQRT1_2
@@ -70,9 +76,9 @@ class cdf
 	public:
 		typeit():f(cdftype::normal){}
 		void setFirst(){f=cdftype::normal;}
-		bool isEnd(){return f==cdftype::size;}
-		cdftype getVal(){return f;}
-		cdftype &operator++(){f=cdftype(f+1);return f;} // ++f
+		bool isEnd const(){return f==cdftype::size;}
+		cdftype getVal const(){return f;}
+		cdftype &operator++(){return f=cdftype(f+1);} // ++f
 		cdftype operator++(int){cdftype r=f;f=cdftype(f+1);return r;} // f++
 	};
 	inline void setMean(double m){mean=m;}
@@ -101,7 +107,23 @@ public:
 	}
 	void setBest(const vector<double> &rhs)
 	{
-		
+		vector<sortByAbs<double> > tmp(rhs.size()); for(size_t x=rhs.size();x--;) tmp[x]=rhs[x];
+		sort(tmp.begin(),tmp.end());
+		mean=safeSum(tmp)/tmp.size();
+		var=safeSumSqr(tmp)/tmp.size();
+		cdftype c=cdftype::normal;
+		double err=1e9;
+		for(typeit t;t!=isEnd();t++)
+		{
+			f=t.getVal();
+			vector<double> tmperr;
+			for(size_t x=tmp.size();x--;)
+			{
+				double d=lower_bound(tmp.begin(),tmp.end(),tmp[x])-tmp.begin();
+				d/=tmp.size();
+				tmperr.push_back(d-p(tmp[x]));
+			}
+		}
 	}
 };
 
@@ -168,7 +190,7 @@ public:
 				register double d;
 				if(sscanf(data[x].input(i).c_str(),"%lf",&d)==1) t.push_back(d);
 			}
-			
+			f[i].setBest(t);
 		}
 	}
 	void learn_continuous(const vector<double> &n)
