@@ -384,11 +384,12 @@ vector<row> parseData_ml(const string &fname,const char del,const map<string,str
 int test0(const int argc,const char *argv[]);
 int test1(const int argc,const char *argv[]);
 int test2(const int argc,const char *argv[]);
+int test3(const int argc,const char *argv[]);
 map<string,string> parseAttr_ml(const string &fname);
 
 int main(const int argc,const char *argv[])
 {
-	return test2(argc,argv);
+	return test3(argc,argv);
 	return 0;
 }
 
@@ -413,7 +414,7 @@ int test1(const int argc,const char *argv[])
 	for(int x=3;x<argc;x++) cout<<argv[x]<<" -> "<<xd.distinct(row(parseDataRow(argv[x],argv[1][0]),""))<<endl;
 	return 0;
 }
-int test2(const int argc,const char *argv[])
+int test2(const int argc,const char *argv[]) // ml-1
 {
 	if(argc<5){cout<<"usage: "<<argv[0]<<"  delim  file-train  file-test  attr"<<endl;return 0;}
 	nb xd;
@@ -422,6 +423,17 @@ int test2(const int argc,const char *argv[])
 	xd.printcp();
 	xd.printfs();
 	vector<row> test=parseData_ml(argv[3],argv[1][0],conv,"");
+	for(size_t x=0,xs=test.size();x<xs;x++) cout<<test[x].output()<<" "<<xd.distinct(test[x])<<endl<<endl;
+	return 0;
+}
+int test3(const int argc,const char *argv[]) // ml-0
+{
+	if(argc<5){cout<<"usage: "<<argv[0]<<"  delim  file-train  file-test  attr"<<endl;return 0;}
+	nb xd;
+	xd.reset(parseData(argv[2],argv[1][0]));
+	xd.printcp();
+	xd.printfs();
+	vector<row> test=parseData(argv[3],argv[1][0]);
 	for(size_t x=0,xs=test.size();x<xs;x++) cout<<test[x].output()<<" "<<xd.distinct(test[x])<<endl<<endl;
 	return 0;
 }
