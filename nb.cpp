@@ -22,6 +22,8 @@ P(Y=y|X=x)
 
 using namespace std;
 
+bool debug=0;
+
 template<class T>
 inline T ori(const T n){return n;}
 template<class T>
@@ -81,7 +83,7 @@ const double M_SQRT1_Exp=sqrt(1/exp(1));
 #ifndef M_SQRT1_2Pi
 const double M_SQRT1_2Pi=sqrt(0.125/atan(1));
 #endif
-const double veryLarge=128;
+const double veryLarge=1e28;
 const double verySmall=1/veryLarge;
 const double verySmall_minus1=verySmall-1;
 const double verySmall2_minus1=verySmall*2-1;
@@ -150,11 +152,13 @@ public:
 			sort(tmp.begin(),tmp.end());
 			vector<double> t(tmp.size()); for(size_t x=t.size();x--;) t[x]=tmp[x].val();
 			setMean(safeSum(t,0,t.size())/t.size());
-			cout<<"  "<<safeSum(t,0,t.size())<<" "<<t.size()<<endl;
+			if(debug){ cout<<"  sum(x) "<<safeSum(t,0,t.size())<<" "<<t.size()<<endl; } // debug
 			for(size_t x=t.size();x--;) t[x]-=mean;
 			setVar(safeSumSqr(t,0,t.size())/t.size());
+			if(debug){ cout<<"  sum(xx)"<<safeSum(t,0,t.size())<<" "<<t.size()<<endl; } // debug
+			if(debug){ cout<<"  mean "<<mean<<" variance "<<var<<endl; } // debug
 		}
-		//return; // limited in normal distribution
+		return; // limited in normal distribution
 		vector<double> tmp=rhs; sort(tmp.begin(),tmp.end());
 		cdftype c;
 		double err=tmp.size();
@@ -165,8 +169,8 @@ public:
 			for(size_t x=tmp.size();x--;) tmperr.push_back((double)(x+1)/tmp.size()-p(tmp[x]));
 			double e=safeSumSqr(tmperr,0,tmperr.size());
 			if(e<err){err=e;c=f;}
-			cout<<"distribution type "<<(int)(f)<<" error: "<<e<<endl;
-			//for(size_t x=tmp.size();x--;) cout<<" "<<(double)(x+1)/tmp.size()<<" "<<p(tmp[x])<<endl;
+			if(debug){ cout<<"distribution type "<<(int)(f)<<" error: "<<e<<endl; } // debug
+			if(debug){ for(size_t x=tmp.size();x--;) cout<<" "<<(double)(x+1)/tmp.size()<<" "<<p(tmp[x])<<endl; } // debug
 		}
 		f=c;
 	}
@@ -209,7 +213,11 @@ public:
 	row(const vector<string> &in,const string &out){set(in,out);}
 	void set(const vector<string> &in,const string &out){i=in;o=out;}
 	size_t isize()const{return i.size();}
+	vector<string> &inputv(){return i;}
+	const vector<string> &inputv()const{return i;}
+	string &input(size_t n){return i[n];}
 	const string &input(size_t n)const{return i[n];}
+	string &output(){return o;}
 	const string &output()const{return o;}
 };
 class nb
@@ -236,7 +244,7 @@ public:
 			}
 			for(auto it=tcp.begin();it!=tcp.end();it++) cp[it->first]=(double)(it->second)/total;
 		}
-		cout<<"global"<<endl;
+		if(debug){ cout<<"global"<<endl; } // debug
 		for(size_t i=f.size();i--;)
 		{
 			vector<double> t;
@@ -249,12 +257,12 @@ public:
 		}
 		for(auto it=cs.begin();it!=cs.end();it++)
 		{
-			cout<<"class "<<it->first<<endl;
+			if(debug){ cout<<"class "<<it->first<<endl; } // debug
 			vector<row> &DATA=it->second;
 			vector<cdf> &F=fs[it->first]=vector<cdf>(f.size());
 			for(size_t i=F.size();i--;)
 			{
-				cout<<" "<<i<<endl;
+				if(debug){ cout<<" "<<i<<endl; } // debug
 				vector<double> t;
 				for(size_t x=0,xs=DATA.size();x<xs;x++)
 				{
@@ -283,7 +291,7 @@ public:
 			{
 				//for(int x=0;x<63;x++) p.push_back((long long unsigned)(1)<<x);
 				double t=safeSumLog(p,0,p.size());
-				cout<<it->first<<" "<<t<<endl;
+				cout<<" "<<it->first<<" "<<t<<endl;
 				if(t>rtvp || rtv==""){ rtvp=t; rtv=it->first; }
 			}
 		}
@@ -292,12 +300,12 @@ public:
 	void learn_continuous(const vector<double> &n)
 	{
 	}
-	void printcp()const
+	void printcp()const // debug
 	{
 		cout<<"cp"<<endl;
 		for(auto it=cp.begin();it!=cp.end();it++) cout<<" "<<it->first<<" "<<it->second<<endl;
 	}
-	void printfs()const
+	void printfs()const // debug
 	{
 		cout<<"fs"<<endl;
 		for(auto it=fs.begin();it!=fs.end();it++)
@@ -306,6 +314,11 @@ public:
 			const vector<cdf> &t=it->second;
 			for(size_t x=0,xs=t.size();x<xs;x++) cout<<"  "<<setw(2)<<x<<" "<<t[x].getType()<<endl;
 		}
+	}
+	void printcssize()const // debug
+	{
+		cout<<"cssize"<<endl;
+		for(auto it=cs.begin();it!=cs.end();it++) cout<<" "<<it->first<<" "<<it->second.size()<<endl;
 	}
 };
 // */
@@ -317,7 +330,7 @@ string i2s(int i)
 	while(t.size()){ rtv+=t.back(); t.pop_back(); }
 	return rtv;
 }
-vector<string> parseDataRow(const string &s,const char del)
+vector<string> parseDataLine(const string &s,const char del,int c=-1)
 {
 	vector<string> rtv;
 	string t;
@@ -329,53 +342,43 @@ vector<string> parseDataRow(const string &s,const char del)
 	rtv.push_back(t);
 	return rtv;
 }
-vector<row> parseData(const string &fname,const char del)
+row parseDataRow(const string &s,const char del,int cc=-1,const vector<size_t> &o=vector<size_t>(0))
 {
-	ifstream iii(fname,ios::binary);
-	vector<row> rtv;
-	for(string s;getline(iii,s);)
-	{
-		vector<string> v;
-		string t;
-		for(size_t x=0;s[x];x++)
+	vector<size_t> m; for(size_t x=o.size();x--;){if(o[x]>=m.size()) m.resize(o[x]+1,0); m[o[x] ]=1;}
+	if(debug){ for(int x=0,xs=m.size();x<xs;x++) cout<<m[x]<<" ";cout<<endl; } // debug
+	row rtv;
+	string t;
+	size_t c=cc,r=0;
+	for(size_t x=0;s[x];x++)
+		if(s[x]!=del) t+=s[x];
+		else
 		{
-			if(s[x]==del){ v.push_back(t); t=""; }
-			else t+=s[x];
+			if(r>=m.size() || m[r]==0)
+			{
+				if(t.size()&&t.back()<32) t.pop_back();
+				if(cc>=0 && c==r) rtv.output()=t; else rtv.inputv().push_back(t);
+			}
+			t="";
+			r++;
 		}
-		if(t.back()<32) t.pop_back();
-		rtv.push_back(row(v,t));
-	}
-	cout<<"row: "<<rtv.size()<<endl;
+	if(t.size()&&t.back()<32)t.pop_back();
+	if(cc>=0 && c==r) rtv.output()=t; else rtv.inputv().push_back(t);
 	return rtv;
 }
-vector<row> parseData_ml(const string &fname,const char del,const map<string,string > &convert,const string &mapTo=".")
+vector<row> parseData(const string &fname,const char del,int c=-1,const vector<size_t> &o=vector<size_t>(0),const map<string,string> &convert=map<string,string>())
 {
 	ifstream iii(fname,ios::binary);
 	vector<row> rtv;
 	for(string s;getline(iii,s);)
 	{
-		vector<string> v;
-		string c="",t;
-		for(size_t x=0;s[x];x++)
+		if(s.size()==0 || (s.size()==1 && s.back()=='\r') ) continue;
+		rtv.push_back(parseDataRow(s,del,c,o));
+		if(convert.size())
 		{
-			if(s[x]==del){ if(c=="") c=t; else v.push_back(t); t=""; }
-			else t+=s[x];
+			auto it=convert.find(rtv.back().output());
+			if(it==convert.end()) rtv.pop_back();
+			else rtv.back().output()=it->second;
 		}
-		if(t.back()<32) t.pop_back();
-		v.push_back(t); auto it=convert.find(c);
-		/* /
-		cout<<c<<endl;
-		{
-			int sd=1,sm=1,sy=1; sscanf(c.c_str(),"D-%d/%d/%d",&sd,&sm,&sy);
-			int x=((sy*12)+sm-1)*31+sd-1;
-			int d=(x)%31+1,m=(x/31)%12+1,y=x/31/12;
-			string t="D-"; t+=i2s(d); t+='/'; t+=i2s(m); t+='/'; t+=i2s(y);
-			cout<<"get "<<t<<"$"<<endl;
-		}
-		// */
-		if(it==convert.end()){ if(mapTo!="") continue; }else c=it->second;
-		//cout<<"known as "<<c<<endl;
-		rtv.push_back(row(v,c));
 	}
 	cout<<"row: "<<rtv.size()<<endl;
 	return rtv;
@@ -383,13 +386,133 @@ vector<row> parseData_ml(const string &fname,const char del,const map<string,str
 
 int test0(const int argc,const char *argv[]);
 int test1(const int argc,const char *argv[]);
-int test2(const int argc,const char *argv[]);
-int test3(const int argc,const char *argv[]);
 map<string,string> parseAttr_ml(const string &fname);
+
+// bool getArg() return true on error
+bool getArg(const int argc,const char *argv[],int argit,string &rtv)
+{
+	bool rf=argit<argc;
+	if(rf) rtv=argv[argit];
+	return !rf;
+}
+bool getArg(const int argc,const char *argv[],int argit,long long unsigned &rtv)
+{
+	long long unsigned t;
+	bool rf=argit<argc && sscanf(argv[argit],"%llu",&t)==1;
+	if(rf) rtv=t;
+	return !rf;
+}
+bool getArg(const int argc,const char *argv[],int argit,long long int &rtv)
+{
+	long long int t;
+	bool rf=argit<argc && sscanf(argv[argit],"%lld",&t)==1;
+	if(rf) rtv=t;
+	return !rf;
+}
+bool getArg(const int argc,const char *argv[],int argit,double &rtv)
+{
+	double t;
+	bool rf=argit<argc && sscanf(argv[argit],"%lf",&t)==1;
+	if(rf) rtv=t;
+	return !rf;
+}
+
+void printOpt(const char *opt,int lv,const char *readme=NULL)
+{
+	char *ptr;
+	if(lv>=0) ptr=new char[lv+2];
+	for(int x=0;x<lv;x++) ptr[x]='\t'; ptr[lv]=0;
+	printf("%s [ %s ]\n",ptr,opt);
+	if(readme!=NULL)
+	{
+		ptr[lv]='\t';
+		ptr[lv+1]=0;
+		printf("%s %s\n",ptr,readme);
+	}
+	delete [] ptr;
+}
+int ml(const int argc,const char *argv[])
+{
+	const string arg_help="--help";
+	bool printUsage=(argc<5 || (argc>1 && arg_help==argv[1]));
+	if(printUsage)
+	{
+		printf("usage:  %s  -t training_file  -c class_column(number, starting from 0, default none)  [ OPTIONS ]\n",argv[0]);
+		printf("\t the OPTIONS can be one or more of the following\n");
+		printOpt("-a attribute_file",2,"the ugly attribute file (\"ML_assignment 3_attr.txt\") you provide, this will map original class to the other.");
+		printOpt("-d line_delimiter",2,"default = ','  e.g. -d \",\"");
+		printOpt("-o omit_columns",2,"starting from 0, default none, using ',' to seperate e.g. -o 0,2,3");
+		printOpt("-p predicting_file(testing file?)",2);
+		printOpt("-q a_query",2);
+		return 0;
+	}
+	map<string,string> convert; // convert to arranged classes
+	vector<string> qv; // query
+	vector<size_t> ov; // omit
+	string fn_tr,fn_te,fn_at;
+	int cc=-1;
+	char deli=',';
+	bool err=0;
+	for(int argit=1;argit<argc && !err;argit++)
+	{
+		const char *arg=argv[argit++];
+		if(arg[0]=='-') switch(arg[1])
+		{
+		default: err=1; break;
+		case 'a':
+		{
+			err=getArg(argc,argv,argit,fn_at);
+		}break;
+		case 'c':
+		{
+			long long int t=-1;
+			err=getArg(argc,argv,argit,t);
+			cc=t;
+		}break;
+		case 'd':
+		{
+			string t;
+			err=getArg(argc,argv,argit,t);
+			deli=t[0];
+		}break;
+		case 'o':
+		{
+			string t;
+			err=getArg(argc,argv,argit,t);
+			for(size_t x=0;t[x];x++) if(t[x]==',') t[x]=' ';
+			stringstream ss(t);
+			for(size_t tmp;ss>>tmp;) ov.push_back(tmp);
+		}break;
+		case 'p':
+		{
+			err=getArg(argc,argv,argit,fn_te);
+		}break;
+		case 'q':
+		{
+			string t;
+			err=getArg(argc,argv,argit,t);
+			if(!err) qv.push_back(t);
+		}break;
+		case 't':
+		{
+			err=getArg(argc,argv,argit,fn_tr);
+		}break;
+		}
+		if(err) fprintf(stderr,"error: argument %d: %s",argit-1,argv[argit-1]);
+	}
+	//convert=parseAttr_ml(fn_at);
+	nb xd(parseData(fn_tr,deli,cc,ov,parseAttr_ml(fn_at)));
+	cout<<"predict file:"<<endl;
+	vector<row> test=parseData(fn_te,deli,cc,ov);
+	for(size_t x=0,xs=test.size();x<xs;x++) cout<<"class: "<<xd.distinct(test[x])<<endl<<endl;
+	if(qv.size()) cout<<"cmd queries:"<<endl;
+	for(size_t x=0,xs=qv.size();x<xs;x++) cout<<"class: "<<xd.distinct(parseDataRow(qv[x],',',cc))<<endl<<endl;
+	return 0;
+}
 
 int main(const int argc,const char *argv[])
 {
-	return test3(argc,argv);
+	return ml(argc,argv);
 	return 0;
 }
 
@@ -411,30 +534,7 @@ int test1(const int argc,const char *argv[])
 	if(argc<3){cout<<"usage: "<<argv[0]<<"  delim  file  [query]"<<endl;return 0;}
 	nb xd;
 	xd.reset(parseData(argv[2],argv[1][0]));
-	for(int x=3;x<argc;x++) cout<<argv[x]<<" -> "<<xd.distinct(row(parseDataRow(argv[x],argv[1][0]),""))<<endl;
-	return 0;
-}
-int test2(const int argc,const char *argv[]) // ml-1
-{
-	if(argc<5){cout<<"usage: "<<argv[0]<<"  delim  file-train  file-test  attr"<<endl;return 0;}
-	nb xd;
-	map<string,string> conv=parseAttr_ml(argv[4]);
-	xd.reset(parseData_ml(argv[2],argv[1][0],conv));
-	xd.printcp();
-	xd.printfs();
-	vector<row> test=parseData_ml(argv[3],argv[1][0],conv,"");
-	for(size_t x=0,xs=test.size();x<xs;x++) cout<<test[x].output()<<" "<<xd.distinct(test[x])<<endl<<endl;
-	return 0;
-}
-int test3(const int argc,const char *argv[]) // ml-0
-{
-	if(argc<5){cout<<"usage: "<<argv[0]<<"  delim  file-train  file-test  attr"<<endl;return 0;}
-	nb xd;
-	xd.reset(parseData(argv[2],argv[1][0]));
-	xd.printcp();
-	xd.printfs();
-	vector<row> test=parseData(argv[3],argv[1][0]);
-	for(size_t x=0,xs=test.size();x<xs;x++) cout<<test[x].output()<<" "<<xd.distinct(test[x])<<endl<<endl;
+	for(int x=3;x<argc;x++) cout<<argv[x]<<" -> "<<xd.distinct(row(parseDataLine(argv[x],argv[1][0]),""))<<endl;
 	return 0;
 }
 
@@ -502,4 +602,5 @@ map<string,string> parseAttr_ml(const string &fname)
 	}
 	return rtv;
 }
+
 
