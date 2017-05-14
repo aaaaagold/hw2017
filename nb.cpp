@@ -74,8 +74,8 @@ const double M_SQRT1_2=sqrt(0.5);
 #ifndef M_SQRT1_12
 const double M_SQRT1_12=sqrt(1.0/12);
 #endif
-#ifndef M_SQRT3_10
-const double M_SQRT3_10=sqrt(3.0/10);
+#ifndef M_SQRT3_5
+const double M_SQRT3_5=sqrt(3.0/5);
 #endif
 #ifndef M_SQRT1_Exp
 const double M_SQRT1_Exp=sqrt(1/exp(1));
@@ -83,21 +83,16 @@ const double M_SQRT1_Exp=sqrt(1/exp(1));
 #ifndef M_SQRT1_2Pi
 const double M_SQRT1_2Pi=sqrt(0.125/atan(1));
 #endif
-const double veryLarge=1e28;
+const double veryLarge=32;
 const double verySmall=1/veryLarge;
 const double verySmall_minus1=verySmall-1;
-const double verySmall2_minus1=verySmall*2-1;
-const double verySmall3_minus1=verySmall*3-1;
-const double verySmall5_minus1=verySmall*5-1;
 inline double smallp(double value){return exp(-value*veryLarge);} // [0,inf)
 inline double normalCDF(double value){ return erfc(-value*M_SQRT1_2)*0.5; } // N(0,1)
 inline double uniformalCDF(double value){ return value<0?0:(value>1?1:value); } // U[0,1]
 inline double exponentialCDF(double value){ return value<0?0:(1-exp(-value)); } // lambda=1
 inline double uquadraticCDF(double value){ return value<-1?0:(value>1?1:(1+value*value*value)*0.5); } // x in [-1,1], pdf=(3/2)x^2, var=3/10
 inline double normalPDF(double value){ return M_SQRT1_2Pi*exp(-value*value*0.5); } // N(0,1)
-inline double uniformalPDF(double value){ return value<0?smallp(-value):(value>1?smallp(value-1):(-verySmall2_minus1)); } // U[0,1]
 inline double exponentialPDF(double value){ return value<0?smallp(-value):exp(-value)*(-verySmall_minus1); } // lambda=1
-inline double uquadraticPDF(double value){ return value*value>1?smallp(abs(value)-1)*1.5:((value*value*1.5)*(-verySmall5_minus1)+verySmall); } // x in [-1,1], pdf=(3/2)x^2, var=3/10
 class cdf //  default: N(0,1)
 {
 	double mean,var,sd;
@@ -105,17 +100,31 @@ class cdf //  default: N(0,1)
 public:
 	inline double normal(double val)const{return normalCDF((val-mean)/sd);} // mean,variance
 	inline double unifor(double val)const{return uniformalCDF((val-mean)*M_SQRT1_12/sd+0.5);} // mean,variance
-	inline double expone(double val)const{return exponentialCDF((val-mean)/sd+1);} // mean,variance
-	inline double uquadr(double val)const{return uquadraticCDF((val-mean)*M_SQRT3_10/sd);} // mean,variance
-	inline double dnormal(double val)const{return normalPDF((val-mean)/sd);} // mean,variance
-	inline double dunifor(double val)const{return uniformalPDF((val-mean)*M_SQRT1_12/sd+0.5);} // mean,variance
-	inline double dexpone(double val)const{return exponentialPDF((val-mean)/sd+1);} // mean,variance
-	inline double duquadr(double val)const{return uquadraticPDF((val-mean)*M_SQRT3_10/sd);} // mean,variance
+	inline double expone(double val)const{return exponentialCDF((val-mean)+sd);} // mean,variance
+	inline double uquadr(double val)const{return uquadraticCDF((val-mean)*M_SQRT3_5/sd);} // mean,variance
+	inline double dnormal(double val)const{return normalPDF((val-mean)/sd)/sd;} // mean,variance
+	inline double dunifor(double val)const
+	{
+		double t=M_SQRT1_12/sd,v=(val-mean)*t;
+		return ((v*v>0.25)?smallp(abs(v)-0.5):1)*t/(verySmall*2+1);
+	} // mean,variance
+	inline double dexpone(double val)const{return exponentialPDF((val-mean)+sd)*sd;} // mean,variance
+	inline double duquadr(double val)const
+	{
+		double t=M_SQRT3_5/sd,v=(val-mean)*t;
+		double sd3=sd*sd*sd;
+		return ((v*v>1)?smallp(abs(v)-1):(v*v*(-verySmall_minus1)+verySmall))*t*1.5/(1+verySmall*5);
+		// ?3k/t:(1+2k)/t
+		return ((v*v>1)?(smallp(abs(v)-1)*1.5):((v*v*(-verySmall_minus1)+verySmall)*1.5))
+			*t/(1+verySmall*5);
+	} // mean,variance
 	cdf():f(cdftype::normal){setMV(0,1);}
 	cdf(double m,double v,cdftype cf=cdftype::normal){f=cf;setMV(m,v);}
 	cdf(const vector<double> &rhs){setBest(rhs);}
 	inline void setMean(double m){mean=m;}
+	inline double getMean()const{return mean;}
 	inline void setVar(double v){var=v;sd=sqrt(var);}
+	inline double getVar()const{return var;}
 	inline void setMV(double m,double v){setMean(m);setVar(v);}
 	inline void setType(const cdftype t){f=t;}
 	inline cdftype getType()const{return f;}
@@ -158,7 +167,7 @@ public:
 			if(debug){ cout<<"  sum(xx)"<<safeSum(t,0,t.size())<<" "<<t.size()<<endl; } // debug
 			if(debug){ cout<<"  mean "<<mean<<" variance "<<var<<endl; } // debug
 		}
-		return; // limited in normal distribution
+		//return; // limited in normal distribution
 		vector<double> tmp=rhs; sort(tmp.begin(),tmp.end());
 		cdftype c;
 		double err=tmp.size();
@@ -170,7 +179,7 @@ public:
 			double e=safeSumSqr(tmperr,0,tmperr.size());
 			if(e<err){err=e;c=f;}
 			if(debug){ cout<<"distribution type "<<(int)(f)<<" error: "<<e<<endl; } // debug
-			if(debug){ for(size_t x=tmp.size();x--;) cout<<" "<<(double)(x+1)/tmp.size()<<" "<<p(tmp[x])<<endl; } // debug
+			//if(debug){ for(size_t x=tmp.size();x--;) cout<<" "<<(double)(x+1)/tmp.size()<<" "<<p(tmp[x])<<endl; } // debug
 		}
 		f=c;
 	}
@@ -291,6 +300,7 @@ public:
 			{
 				//for(int x=0;x<63;x++) p.push_back((long long unsigned)(1)<<x);
 				double t=safeSumLog(p,0,p.size());
+				if(debug){ sort(p.begin(),p.end()); for(size_t x=p.size();x--;) cout<<-log(p[x])<<" "; cout<<endl; } // debug
 				cout<<" "<<it->first<<" "<<t<<endl;
 				if(t>rtvp || rtv==""){ rtvp=t; rtv=it->first; }
 			}
@@ -319,6 +329,11 @@ public:
 	{
 		cout<<"cssize"<<endl;
 		for(auto it=cs.begin();it!=cs.end();it++) cout<<" "<<it->first<<" "<<it->second.size()<<endl;
+	}
+	vector<cdf> getCDFByClass(const string &c)
+	{
+		auto it=fs.find(c);
+		return it==fs.end()?vector<cdf>(0):it->second;
 	}
 };
 // */
