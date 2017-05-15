@@ -283,9 +283,9 @@ public:
 			}
 		}
 	}
-	string distinct(const row &q)
+	string distinct(const row &q,bool printClasses=false)
 	{
-		cout<<q.output()<<endl;
+		if(printClasses) cout<<q.output()<<endl;
 		string rtv="";
 		double rtvp=0;
 		for(auto it=fs.begin();it!=fs.end();it++)
@@ -301,7 +301,7 @@ public:
 				//for(int x=0;x<63;x++) p.push_back((long long unsigned)(1)<<x);
 				double t=safeSumLog(p,0,p.size());
 				if(debug){ sort(p.begin(),p.end()); for(size_t x=p.size();x--;) cout<<-log(p[x])<<" "; cout<<endl; } // debug
-				cout<<" "<<it->first<<" "<<t<<endl;
+				if(printClasses) cout<<" "<<it->first<<" "<<t<<endl;
 				if(t>rtvp || rtv==""){ rtvp=t; rtv=it->first; }
 			}
 		}
@@ -446,6 +446,45 @@ void printOpt(const char *opt,int lv,const char *readme=NULL)
 	}
 	delete [] ptr;
 }
+void kfold(size_t k,const vector<row> &all,const map<string,string> &convert=map<string,string>())
+{
+	if(k<2) return;
+	cout<<"kfold, k = "<<k<<endl;
+	size_t dsz=all.size();
+	vector<row> datak=all; for(int x=111+(rand()&127);x--;) swap(datak[rand()%dsz],datak[rand()%dsz]);
+	vector<row> data=datak; if(convert.size()) for(size_t x=data.size();x--;) data[x].output()=convert.find(datak[x].output())->second;
+	size_t acc=0,sz=0;
+	for(size_t x=0;x<k;x++)
+	{
+		size_t ig_beg=dsz*x/k,ig_end=dsz*(x+1)/k;
+		vector<size_t> tr,tra,te;
+		for(size_t z=0;z<dsz;z++) if(z>=ig_beg && z<ig_end) te.push_back(z); else tr.push_back(z);
+		map<string,size_t> cnt;
+		for(size_t z=0,zs=tr.size();z<zs;z++)
+		{
+			auto it=cnt.find(data[tr[z]].output());
+			if(it!=cnt.end()) it->second++; else cnt[data[tr[z]].output()]=1;
+		}
+		map<string,int> only1;
+		for(auto it=cnt.begin();it!=cnt.end();it++) if(it->second==1) only1[it->first]=1;
+		for(size_t z=0,zs=tr.size();z<zs;z++)
+			if(only1.find(data[tr[z]].output())==only1.end()) tra.push_back(tr[z]);
+			else te.push_back(tr[z]);
+		vector<row> trai; for(size_t z=0,zs=tra.size();z<zs;z++) trai.push_back(data[tra[z]]);
+		nb xd(trai);
+		for(size_t z=0,zs=te.size();z<zs;z++)
+		{
+			const row &R=datak[te[z]];
+			auto it=convert.find(R.output());
+			string p=xd.distinct(R),t=convert.size()?it->second:R.output();
+			acc+=p==t;
+			if(debug) cout<<p<<" "<<t<<endl; // debug
+			sz++;
+		}
+	}
+	double tmp=100.0*acc/sz;
+	cout<<" correctness: "<<((tmp<100?" ":""))<<((tmp<10?" ":""))<<tmp<<"%"<<endl;
+}
 int ml(const int argc,const char *argv[])
 {
 	const string arg_help="--help";
@@ -456,14 +495,16 @@ int ml(const int argc,const char *argv[])
 		printf("\t the OPTIONS can be one or more of the following\n");
 		printOpt("-a attribute_file",2,"the ugly attribute file (\"ML_assignment 3_attr.txt\") you provide, this will map original class to the other.");
 		printOpt("-d line_delimiter",2,"default = ','  e.g. -d \",\"");
+		printOpt("-k k of k-fold",2,"k>=2, default = 10','  e.g. -k 2,3,5,10,15,20");
 		printOpt("-o omit_columns",2,"starting from 0, default none, using ',' to seperate e.g. -o 0,2,3");
 		printOpt("-p predicting_file(testing file?)",2);
 		printOpt("-q a_query",2);
 		return 0;
 	}
-	map<string,string> convert; // convert to arranged classes
+	map<string,string> convert,convertSame; // convert to arranged classes
 	vector<string> qv; // query
 	vector<size_t> ov; // omit
+	vector<size_t> kv; // kfold
 	string fn_tr,fn_te,fn_at;
 	int cc=-1;
 	char deli=',';
@@ -490,6 +531,14 @@ int ml(const int argc,const char *argv[])
 			err=getArg(argc,argv,argit,t);
 			deli=t[0];
 		}break;
+		case 'k':
+		{
+			string t;
+			err=getArg(argc,argv,argit,t);
+			for(size_t x=0;t[x];x++) if(t[x]==',') t[x]=' ';
+			stringstream ss(t);
+			for(size_t tmp;ss>>tmp;) kv.push_back(tmp);
+		}break;
 		case 'o':
 		{
 			string t;
@@ -515,13 +564,30 @@ int ml(const int argc,const char *argv[])
 		}
 		if(err) fprintf(stderr,"error: argument %d: %s",argit-1,argv[argit-1]);
 	}
-	//convert=parseAttr_ml(fn_at);
-	nb xd(parseData(fn_tr,deli,cc,ov,parseAttr_ml(fn_at)));
+	convert=parseAttr_ml(fn_at);
+	for(auto it=convert.begin();it!=convert.end();it++) convertSame[it->first]=it->first;
+	vector<row> datak=parseData(fn_tr,deli,cc,ov,convertSame);
+	vector<row> data=datak; if(convert.size()) for(size_t x=data.size();x--;) data[x].output()=convert.find(datak[x].output())->second;
+	nb xd(data);
+	cout<<"resubstitution"<<endl;
+	size_t cnt=0;
+	for(size_t x=datak.size();x--;)
+	{
+		string p=xd.distinct(datak[x]),t=convert.size()?convert.find(datak[x].output())->second:datak[x].output();
+		cnt+=p==t;
+		if(debug) cout<<p<<" "<<t<<endl;
+	}
+	{
+		double tmp=100.0*cnt/datak.size();
+		cout<<" correctness: "<<((tmp<100?" ":""))<<((tmp<10?" ":""))<<tmp<<"%"<<endl;
+	}
+	for(size_t x=0,xs=kv.size();x<xs;x++) kfold(kv[x],datak,convert);
+	
 	cout<<"predict file:"<<endl;
 	vector<row> test=parseData(fn_te,deli,cc,ov);
-	for(size_t x=0,xs=test.size();x<xs;x++) cout<<"class: "<<xd.distinct(test[x])<<endl<<endl;
+	for(size_t x=0,xs=test.size();x<xs;x++) cout<<"class: "<<xd.distinct(test[x],1)<<endl<<endl;
 	if(qv.size()) cout<<"cmd queries:"<<endl;
-	for(size_t x=0,xs=qv.size();x<xs;x++) cout<<"class: "<<xd.distinct(parseDataRow(qv[x],',',cc))<<endl<<endl;
+	for(size_t x=0,xs=qv.size();x<xs;x++) cout<<"class: "<<xd.distinct(parseDataRow(qv[x],',',cc),1)<<endl<<endl;
 	return 0;
 }
 
