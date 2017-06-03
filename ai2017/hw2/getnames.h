@@ -104,6 +104,8 @@ public:
 	dataType(){sorted=0;}
 	bool isNumber()const{return vs.size()==1 && vs[0]=="continuous";}
 	const vector<string> &getinfo()const{return vs;}
+	const string &operator[](size_t n)const{return vs[n];}
+	size_t size()const{return vs.size();}
 	bool have(const string &s)const
 	{
 		if(isNumber()){ double tmp; return sscanf(s.c_str(),"%lf",&tmp)==1; }
@@ -191,6 +193,13 @@ public:
 		for(int x=0,xs=i.size();x<xs;x++) cout<<i[x]<<",";
 		cout<<o<<endl;
 	}
+	string tostr()const
+	{
+		string rtv;
+		for(int x=0,xs=i.size();x<xs;x++){ rtv+=i[x]; rtv+=","; }
+		rtv+=o;
+		return rtv;
+	}
 };
 
 class alldata
@@ -206,6 +215,7 @@ public:
 		for(int x=0,xs=rv.size();x<xs;x++) rv[x].print();
 	}
 	void add(const row &rhs){rv.push_back(rhs);}
+	void add(const vector<row> &rhs){for(int x=0,xs=rhs.size();x<xs;x++)add(rhs[x]);}
 	void sort(){std::sort(rv.begin(),rv.end());}
 	vector<alldata> cut(size_t k)const
 	{
@@ -242,6 +252,11 @@ public:
 				if(head.o.have(o)) add(row(iv,o));
 			}
 		}
+	}
+	void tofile(const string &fn)const
+	{
+		ofstream ooo(fn.c_str(),ios::binary);
+		for(int x=0,xs=rv.size();x<xs;x++) ooo<<rv[x].tostr()<<"\n";
 	}
 };
 
