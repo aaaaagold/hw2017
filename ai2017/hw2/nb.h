@@ -22,6 +22,8 @@ P(Y=y|X=x)
 #include <map>
 #include <cmath>
 
+#include "getnames.h"
+
 using namespace std;
 
 template<class T>
@@ -203,6 +205,7 @@ class row
 public:
 	row(){}
 	row(const vector<string> &in,const string &out){set(in,out);}
+	bool operator<(const row &rhs)const{return o<rhs.o;}
 	void set(const vector<string> &in,const string &out){i=in;o=out;}
 	size_t isize()const{return i.size();}
 	vector<string> &inputv(){return i;}
@@ -227,6 +230,48 @@ class nb
 public:
 	nb(){total=0;};
 	nb(const vector<row> &data){reset(data);}
+	nb(const vector<row> &data,const dataFormat &head){reset(data,head);}
+	void reset(const vector<row> &data,const dataFormat &head)
+	{
+		cs.clear();
+		if(total=data.size()) f.resize(head.iv.size()); else return;
+		{
+			map<string,size_t> tcp;
+			for(size_t x=total;x--;)
+			{
+				string t=data[x].output();
+				if(tcp.find(t)!=tcp.end()){ tcp[t]++; cs[t].push_back(data[x]); }
+				else{ tcp[t]=1; cs[t]=vector<row>(1,data[x]); }
+			}
+			for(auto it=tcp.begin();it!=tcp.end();it++) cp[it->first]=(double)(it->second)/total;
+		}
+		for(size_t i=f.size();i--;)
+		{
+			vector<double> t;
+			for(size_t x=0,xs=total;x<xs;x++)
+			{
+				double d;
+				if(sscanf(data[x].input(i).c_str(),"%lf",&d)==1) t.push_back(d);
+			}
+			f[i].setBest(t);
+		}
+		for(auto it=cs.begin();it!=cs.end();it++)
+		{
+			vector<row> &DATA=it->second;
+			vector<cdf> &F=fs[it->first]=vector<cdf>(f.size());
+			for(size_t i=F.size();i--;)
+			{
+				vector<double> t;
+				for(size_t x=0,xs=DATA.size();x<xs;x++)
+				{
+					double d;
+					if(sscanf(DATA[x].input(i).c_str(),"%lf",&d)==1) t.push_back(d);
+				}
+				if(t.size()!=1) F[i].setBest(t);
+				else F[i].setMean(t[0]);
+			}
+		}
+	}
 	void reset(const vector<row> &data)
 	{
 		cs.clear();
