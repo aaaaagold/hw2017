@@ -107,7 +107,8 @@ public:
 	bool have(const string &s)const
 	{
 		if(isNumber()){ double tmp; return sscanf(s.c_str(),"%lf",&tmp)==1; }
-		else if(sorted) binary_search(vs.begin(),vs.end(),s); else for(size_t x=vs.size();x--;) if(vs[x]==s) return 1;
+		else if(sorted) return binary_search(vs.begin(),vs.end(),s);
+		else for(size_t x=vs.size();x--;) if(vs[x]==s) return 1;
 		return 0;
 	}
 	void print(const string &sep="$\n")const // debug
