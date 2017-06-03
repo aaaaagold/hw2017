@@ -136,38 +136,113 @@ public:
 		o.print("$\n");
 		for(int x=0,xs=iv.size();x<xs;x++){ iv[x].print(","); cout<<endl;}
 	}
+	void readNames(const string &fn)
+	{
+		ifstream iii(fn.c_str(),ios::binary);
+		vector<string> lines;
+		for(string s;getline(iii,s);)
+		{
+			if(s.back()=='\r') s.pop_back();
+			if(!commentOnly(s)) lines.push_back(cutComment(s));
+		}
+		if(0){ for(int x=0,xs=lines.size();x<xs;x++) cout<<setw(7)<<lines[x].size()<<" "<<lines[x]<<endl; } // debug
+		int x=0;
+		vector<string> targets;
+		for(int xs=lines.size();x<xs;x++)
+		{
+			if(lines[x].size()==0) if(targets.size()==0) continue; else break;
+			splitLine(targets,lines[x]);
+		}
+		while(lines[x].size()==0) x++;
+		vector<vector<string> > attrs;
+		for(int xs=lines.size();x<xs;x++)
+		{
+			int c=colonAt(lines[x]);
+			if(c==-1) if(attrs.size()==0) continue; else splitLine(attrs.back(),lines[x]);
+			else
+			{
+				vector<string> t;
+				attrs.push_back(splitLine(t,lines[x],c+1));
+			}
+		}
+		set(attrs,targets);
+	}
 };
 
-dataFormat readNames(const string &fn)
+// suppose <string,...> => string
+class row
 {
-	ifstream iii(fn.c_str(),ios::binary);
-	vector<string> lines;
-	for(string s;getline(iii,s);)
+	vector<string> i;
+	string o;
+public:
+	row(){}
+	row(const vector<string> &in,const string &out){set(in,out);}
+	bool operator<(const row &rhs)const{return o<rhs.o;}
+	void set(const vector<string> &in,const string &out){i=in;o=out;}
+	size_t isize()const{return i.size();}
+	vector<string> &inputv(){return i;}
+	const vector<string> &inputv()const{return i;}
+	string &input(size_t n){return i[n];}
+	const string &input(size_t n)const{return i[n];}
+	string &output(){return o;}
+	const string &output()const{return o;}
+	void print()const // debug
 	{
-		if(s.back()=='\r') s.pop_back();
-		if(!commentOnly(s)) lines.push_back(cutComment(s));
+		for(int x=0,xs=i.size();x<xs;x++) cout<<i[x]<<",";
+		cout<<o<<endl;
 	}
-	if(0){ for(int x=0,xs=lines.size();x<xs;x++) cout<<setw(7)<<lines[x].size()<<" "<<lines[x]<<endl; } // debug
-	int x=0;
-	vector<string> targets;
-	for(int xs=lines.size();x<xs;x++)
+};
+
+class alldata
+{
+public:
+	dataFormat head;
+	vector<row> rv;
+	void print()const // debug
 	{
-		if(lines[x].size()==0) if(targets.size()==0) continue; else break;
-		splitLine(targets,lines[x]);
+		cout<<" * head"<<endl;
+		head.print();
+		cout<<" * rows"<<endl;
+		for(int x=0,xs=rv.size();x<xs;x++) rv[x].print();
 	}
-	while(lines[x].size()==0) x++;
-	vector<vector<string> > attrs;
-	for(int xs=lines.size();x<xs;x++)
+	void add(const row &rhs){rv.push_back(rhs);}
+	void sort(){std::sort(rv.begin(),rv.end());}
+	vector<alldata> kfold(size_t k)const
 	{
-		int c=colonAt(lines[x]);
-		if(c==-1) if(attrs.size()==0) continue; else splitLine(attrs.back(),lines[x]);
+		vector<alldata> rtv; { alldata tmp; tmp.head=head; rtv.resize(k,tmp); }
+		bool sorted=1; for(size_t x=rv.size();--x;) if(!(rv[x-1]<rv[x])){sorted=0;break;}
+		if(sorted) for(size_t x=0,xs=rv.size();x<xs;x++){rtv[x%k].add(rv[x]);}
 		else
 		{
-			vector<string> t;
-			attrs.push_back(splitLine(t,lines[x],c+1));
+			vector<row> tmp=rv; std::sort(tmp.begin(),tmp.end());
+			for(size_t x=0,xs=rv.size();x<xs;x++){rtv[x%k].add(tmp[x]);}
+		}
+		return rtv;
+	}
+	void readAlldata(const string &fnprefix)
+	{
+		string tmpstr;
+		tmpstr=fnprefix; tmpstr+=".names";
+		head.readNames(tmpstr);
+		for(int x=0,xs=head.iv.size();x<xs;x++){ head.iv[x].sort(); }
+		{ head.o.sort(); }
+		tmpstr=fnprefix; tmpstr+=".data";
+		{
+			ifstream iii(tmpstr.c_str(),ios::binary);
+			vector<string> lines;
+			for(string s;getline(iii,s);)
+			{
+				if(s.back()=='\r') s.pop_back();
+				if(!commentOnly(s)) lines.push_back(cutTailingSpace(cutComment(s)));
+			}
+			for(int x=0,xs=lines.size();x<xs;x++)
+			{
+				vector<string> iv=splitRow(lines[x]); string o;
+				o=iv.back(); iv.pop_back();
+				if(head.o.have(o)) add(row(iv,o));
+			}
 		}
 	}
-	return dataFormat(attrs,targets);
-}
+};
 
 #endif
