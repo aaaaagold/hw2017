@@ -207,7 +207,7 @@ public:
 	}
 	void add(const row &rhs){rv.push_back(rhs);}
 	void sort(){std::sort(rv.begin(),rv.end());}
-	vector<alldata> kfold(size_t k)const
+	vector<alldata> cut(size_t k)const
 	{
 		vector<alldata> rtv; { alldata tmp; tmp.head=head; rtv.resize(k,tmp); }
 		bool sorted=1; for(size_t x=rv.size();--x;) if(!(rv[x-1]<rv[x])){sorted=0;break;}
