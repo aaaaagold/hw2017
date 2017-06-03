@@ -98,14 +98,24 @@ vector<string> splitRow(const string &src,const char del=',')
 
 class dataType
 {
-public:
+	bool sorted;
 	vector<string> vs;
-	bool isNumber(){return vs.size()==1 && vs[0]=="continuous";}
-	dataType &operator=(const vector<string> &rhs){vs=rhs;return *this;}
+public:
+	dataType(){sorted=0;}
+	bool isNumber()const{return vs.size()==1 && vs[0]=="continuous";}
+	const vector<string> &getinfo()const{return vs;}
+	bool have(const string &s)const
+	{
+		if(isNumber()){ double tmp; return sscanf(s.c_str(),"%lf",&tmp)==1; }
+		else if(sorted) binary_search(vs.begin(),vs.end(),s); else for(size_t x=vs.size();x--;) if(vs[x]==s) return 1;
+		return 0;
+	}
 	void print(const string &sep="$\n")const // debug
 	{
 		for(int x=0,xs=vs.size();x<xs;x++) cout<<vs[x]<<sep;
 	}
+	void sort(){std::sort(vs.begin(),vs.end());sorted=1;}
+	dataType &operator=(const vector<string> &rhs){vs=rhs;sort();return *this;}
 };
 class dataFormat
 {
