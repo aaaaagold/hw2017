@@ -197,29 +197,6 @@ public:
 	}
 };
 
-// suppose <string,...> => string
-class row
-{
-	vector<string> i;
-	string o;
-public:
-	row(){}
-	row(const vector<string> &in,const string &out){set(in,out);}
-	bool operator<(const row &rhs)const{return o<rhs.o;}
-	void set(const vector<string> &in,const string &out){i=in;o=out;}
-	size_t isize()const{return i.size();}
-	vector<string> &inputv(){return i;}
-	const vector<string> &inputv()const{return i;}
-	string &input(size_t n){return i[n];}
-	const string &input(size_t n)const{return i[n];}
-	string &output(){return o;}
-	const string &output()const{return o;}
-	void print()const // debug
-	{
-		for(int x=0,xs=i.size();x<xs;x++) cout<<i[x]<<",";
-		cout<<o<<endl;
-	}
-};
 class nb
 {
 	vector<cdf> f;
