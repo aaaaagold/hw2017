@@ -127,16 +127,19 @@ public:
 	cdf(double m,double v,cdftype cf=cdftype::normal){f=cf;setMV(m,v);isDiscrete=0;}
 	cdf(const vector<double> &rhs){setBest(rhs);isDiscrete=0;}
 	cdf(const vector<string> &classv,const vector<string> &sample){setDiscrete(classv,sample);isDiscrete=1;}
-	void setDiscrete(const vector<string> &classv,const vector<string> &sample)
+	void setDiscrete(const vector<string> &classv,const vector<string> &sample,size_t reWeightOnZero=1)
 	{
+		isDiscrete=1;
 		for(int x=0,xs=classv.size();x<xs;x++) cc[classv[x]]=0;
 		total=0;
 		for(int x=0,xs=sample.size();x<xs;x++){ auto it=cc.find(sample[x]); if(it!=cc.end()){ it->second+=1; total++; } }
-		isDiscrete=1;
+		bool haveZero=0; for(auto it=cc.begin();it!=cc.end();it++){ haveZero=1; break; }
+		if(haveZero){ total+=classv.size()*reWeightOnZero; for(auto it=cc.begin();it!=cc.end();it++) it->second+=reWeightOnZero; }
 	}
 	double p(const string &c)const
 	{
-		return 1.0*(cc.find(c)->second)/total;
+		auto it=cc.find(c);
+		return it!=cc.end()?1.0*(cc.find(c)->second)/total:0;
 	}
 	inline void setMean(double m){mean=m;}
 	inline double getMean()const{return mean;}
@@ -173,6 +176,8 @@ public:
 	}
 	void setBest(const vector<double> &rhs)
 	{
+		isDiscrete=0;
+		cc.clear();
 		{
 			vector<sortByAbs<double> > tmp(rhs.size()); for(size_t x=tmp.size();x--;) tmp[x]=rhs[x];
 			sort(tmp.begin(),tmp.end());
@@ -200,9 +205,9 @@ public:
 class nb
 {
 	vector<cdf> f;
-	map<string,vector<row> > cs;
-	map<string,vector<cdf> > fs;
-	map<string,double> cp;
+	map<string,vector<row> > cs; // rows in a class
+	map<string,vector<cdf> > fs; // cdf each attr of a class
+	map<string,double> cp; // P(Class=c)
 	size_t total;
 public:
 	nb(){total=0;};
@@ -211,33 +216,29 @@ public:
 	void reset(const vector<row> &data,const dataFormat &head)
 	{
 		cs.clear();
-		if(total=data.size()) f.resize(head.iv.size()); else return;
+		size_t attrSize=head.iv.size();
+		total=0;
+		// set cs
+		for(size_t x=head.o.size();x--;) cs[head.o[x] ].resize(0); // create entry
+		for(size_t x=data.size();x--;)
 		{
-			map<string,size_t> tcp;
-			for(size_t x=total;x--;)
+			auto it=cs.find(data[x].output());
+			if(it!=cs.end())
 			{
-				string t=data[x].output();
-				if(tcp.find(t)!=tcp.end()){ tcp[t]++; cs[t].push_back(data[x]); }
-				else{ tcp[t]=1; cs[t]=vector<row>(1,data[x]); }
+				total++;
+				it->second.push_back(data[x]);
 			}
-			for(auto it=tcp.begin();it!=tcp.end();it++) cp[it->first]=(double)(it->second)/total;
 		}
-		for(size_t i=f.size();i--;)
-		{
-			vector<double> t;
-			for(size_t x=0,xs=total;x<xs;x++)
-			{
-				double d;
-				if(sscanf(data[x].input(i).c_str(),"%lf",&d)==1) t.push_back(d);
-			}
-			f[i].setBest(t);
-		}
+		// set cp
+		for(auto it=cs.begin();it!=cs.end();it++) cp[it->first]=it->second.size()*1.0/total;
+		// set fs
 		for(auto it=cs.begin();it!=cs.end();it++)
 		{
 			vector<row> &DATA=it->second;
-			vector<cdf> &F=fs[it->first]=vector<cdf>(f.size());
+			vector<cdf> &F=fs[it->first]=vector<cdf>(attrSize);
 			for(size_t i=F.size();i--;)
 			{
+				// continuous
 				vector<double> t;
 				for(size_t x=0,xs=DATA.size();x<xs;x++)
 				{
