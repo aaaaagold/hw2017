@@ -27,6 +27,20 @@ public:
 		head.print();
 		for(int x=0,xs=rv.size();x<xs;x++) rv[x].print();
 	}
+	void add(const row &rhs){rv.push_back(rhs);}
+	void sort(){std::sort(rv.begin(),rv.end());}
+	vector<alldata> kfold(size_t k)const
+	{
+		vector<alldata> rtv; { alldata tmp; tmp.head=head; rtv.resize(k,tmp); }
+		bool sorted=1; for(size_t x=rv.size();--x;) if(!(rv[x-1]<rv[x])){sorted=0;break;}
+		if(sorted) for(size_t x=0,xs=rv.size();x<xs;x++){rtv[x%k].add(rv[x]);}
+		else
+		{
+			vector<row> tmp=rv; std::sort(tmp.begin(),tmp.end());
+			for(size_t x=0,xs=rv.size();x<xs;x++){rtv[x%k].add(tmp[x]);}
+		}
+		return rtv;
+	}
 };
 alldata readAlldata(const string &fnprefix)
 {
@@ -34,8 +48,8 @@ alldata readAlldata(const string &fnprefix)
 	string tmpstr;
 	tmpstr=fnprefix; tmpstr+=".names";
 	rtv.head=readNames(tmpstr);
-	for(int x=0,xs=rtv.head.iv.size();x<xs;x++){ auto &v=rtv.head.iv[x].vs; sort(v.begin(),v.end()); }
-	{ auto &v=rtv.head.o.vs; sort(v.begin(),v.end()); }
+	for(int x=0,xs=rtv.head.iv.size();x<xs;x++){ rtv.head.iv[x].sort(); }
+	{ rtv.head.o.sort(); }
 	tmpstr=fnprefix; tmpstr+=".data";
 	{
 		ifstream iii(tmpstr.c_str(),ios::binary);
@@ -49,7 +63,7 @@ alldata readAlldata(const string &fnprefix)
 		{
 			vector<string> iv=splitRow(lines[x]); string o;
 			o=iv.back(); iv.pop_back();
-			rtv.rv.push_back(row(iv,o));
+			if(rtv.head.o.have(o)) rtv.add(row(iv,o));
 		}
 	}
 	return rtv;
