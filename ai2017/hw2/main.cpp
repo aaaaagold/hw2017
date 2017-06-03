@@ -24,7 +24,9 @@ public:
 	vector<row> rv;
 	void print()const // debug
 	{
+		cout<<" * head"<<endl;
 		head.print();
+		cout<<" * rows"<<endl;
 		for(int x=0,xs=rv.size();x<xs;x++) rv[x].print();
 	}
 	void add(const row &rhs){rv.push_back(rhs);}
