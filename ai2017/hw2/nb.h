@@ -238,15 +238,27 @@ public:
 			vector<cdf> &F=fs[it->first]=vector<cdf>(attrSize);
 			for(size_t i=F.size();i--;)
 			{
-				// continuous
-				vector<double> t;
-				for(size_t x=0,xs=DATA.size();x<xs;x++)
+				if(head.iv[i].isNumber())
 				{
-					double d;
-					if(sscanf(DATA[x].input(i).c_str(),"%lf",&d)==1) t.push_back(d);
+					// continuous
+					vector<double> t;
+					for(size_t x=0,xs=DATA.size();x<xs;x++)
+					{
+						double d;
+						if(sscanf(DATA[x].input(i).c_str(),"%lf",&d)==1) t.push_back(d);
+					}
+					// set F
+					if(t.size()!=1) F[i].setBest(t);
+					else F[i].setMean(t[0]);
 				}
-				if(t.size()!=1) F[i].setBest(t);
-				else F[i].setMean(t[0]);
+				else
+				{
+					// discrete
+					vector<string> t;
+					for(size_t x=0,xs=DATA.size();x<xs;x++) t.push_back(DATA[x].input(i));
+					// set F
+					F[i].setDiscrete(head.o.getinfo(),t);
+				}
 			}
 		}
 	}
