@@ -249,6 +249,7 @@ public:
 			{
 				vector<string> iv=splitRow(lines[x]); string o;
 				o=iv.back(); iv.pop_back();
+				if(isSep(o.back())) o.pop_back();
 				if(head.o.have(o)) add(row(iv,o));
 			}
 		}
