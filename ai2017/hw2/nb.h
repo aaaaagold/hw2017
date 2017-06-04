@@ -85,7 +85,7 @@ const double M_SQRT1_Exp=sqrt(1/exp(1));
 #ifndef M_SQRT1_2Pi
 const double M_SQRT1_2Pi=sqrt(0.125/atan(1));
 #endif
-const double veryLarge=1e11;
+const double veryLarge=32;
 const double verySmall=1/veryLarge;
 const double verySmall_minus1=verySmall-1;
 inline double smallp(double value){return exp(-value*veryLarge);} // [0,inf)
@@ -111,6 +111,8 @@ public:
 	inline double dunifor(double val)const
 	{
 		double t=M_SQRT1_12/sd,v=(val-mean)*t;
+		//cout<<t/(verySmall*2+1)<<endl;
+		return t/(verySmall*2+1);
 		return ((v*v>0.25)?smallp(abs(v)-0.5):1)*t/(verySmall*2+1);
 	} // mean,variance
 	inline double dexpone(double val)const{return exponentialPDF((val-mean)+sd)*sd;} // mean,variance
@@ -136,10 +138,16 @@ public:
 		bool haveZero=0; for(auto it=cc.begin();it!=cc.end();it++) if(it->second==0){ haveZero=1; break; }
 		if(haveZero){ total+=classv.size()*reWeightOnZero; for(auto it=cc.begin();it!=cc.end();it++) it->second+=reWeightOnZero; }
 	}
-	double p_discrete(const string &c)const
+	double dp_discrete(const string &c)const
 	{
 		auto it=cc.find(c);
 		return it!=cc.end()?1.0*(cc.find(c)->second)/total:1;
+	}
+	double dp(const string &c)const
+	{
+		if(isDiscrete()) return dp_discrete(c);
+		else{ double t; if(sscanf(c.c_str(),"%lf",&t)==1) return dp(t); }
+		return 1;
 	}
 	inline void setMean(double m){mean=m;_isDiscrete=0;}
 	inline double getMean()const{return mean;}
@@ -149,6 +157,11 @@ public:
 	inline void setType(const cdftype t){f=t;}
 	inline cdftype getType()const{return f;}
 	inline bool isDiscrete()const{return _isDiscrete;}
+	inline bool validq(const string &q)const
+	{
+		double t;
+		return isDiscrete()?(cc.find(q)!=cc.end()):(sscanf(q.c_str(),"%lf",&t)==1);
+	}
 	double dp(double v)const
 	{
 		double rtv=0;
@@ -175,12 +188,6 @@ public:
 		}
 		return rtv;
 	}
-	double p(const string &c)const
-	{
-		if(isDiscrete()) return p_discrete(c);
-		else{ double t; if(sscanf(c.c_str(),"%lf",&t)==1) return p(t); }
-		return 1;
-	}
 	void setBest(const vector<double> &rhs,const vector<cdftype> &omit=vector<cdftype>(0))
 	{
 		_isDiscrete=0;
@@ -195,7 +202,7 @@ public:
 		}
 		//return; // limited in normal distribution
 		vector<double> tmp=rhs; sort(tmp.begin(),tmp.end());
-		cdftype c;
+		cdftype c=(cdftype)(0);
 		double err=tmp.size();
 		for(cdftype t=(cdftype)(0);t!=cdftype::size;t=cdftype(t+1))
 		{
@@ -226,12 +233,16 @@ public:
 				ss<<(it->second); ss>>s;
 				rtv+=s;
 			}
-		}
-		else
-		{
+		}else{
 			rtv+=" type:";
 			rtv+=('0'+getType());
+			stringstream ss;
+			string s;
+			ss<<"m:"<<getMean()<<" v:"<<getVar();
+			rtv+=" "; ss>>s; rtv+=s;
+			rtv+=" "; ss>>s; rtv+=s;
 		}
+		rtv+=" ";
 		return rtv;
 	}
 };
@@ -277,6 +288,7 @@ public:
 			vector<cdf> &F=fs[it->first]=vector<cdf>(attrSize);
 			for(size_t i=F.size();i--;)
 			{
+				// set F
 				if(head.iv[i].isNumber())
 				{
 					// continuous
@@ -289,9 +301,8 @@ public:
 					// set F
 					if(t.size()!=1) F[i].setBest(t,omit);
 					else F[i].setMean(t[0]);
-				}
-				else
-				{
+	//cout<<" c:"<<(it->first)<<" idx:"<<i<<" m:"<<F[i].getMean()<<" v:"<<F[i].getVar()<<" s:"<<t.size()<<endl; // debug
+				}else{
 					// discrete
 					vector<string> t;
 					for(size_t x=0,xs=DATA.size();x<xs;x++) t.push_back(DATA[x].input(i));
@@ -342,22 +353,31 @@ public:
 			}
 		}
 	}
-	string distinguish(const row &q,bool printClasses=false)
+	string distinguish(const row &q,bool printClasses=false)const
 	{
 		if(printClasses) cout<<q.output()<<endl;
 		string rtv="";
 		double rtvp=0;
+	//vector<double> record; // debug
 		for(auto it=fs.begin();it!=fs.end();it++)
 		{
-			vector<double> p=vector<double>(1,(cp[it->first]));
-			vector<cdf> &c=it->second;
-			for(size_t x=c.size();x--;) p.push_back(c[x].p(q.input(x).c_str()));
-			{
-				double t=safeSumLog(p,0,p.size());
-				if(printClasses) cout<<" "<<it->first<<" "<<t<<endl;
-				if(t>rtvp || rtv==""){ rtvp=t; rtv=it->first; }
+			vector<double> p=vector<double>(1,cp.find(it->first)->second);
+			const vector<cdf> &c=it->second;
+			for(size_t x=c.size();x--;) if(c[x].validq(q.input(x))){
+				if(c[x].isDiscrete() || c[x].getVar()!=0) p.push_back(c[x].dp(q.input(x)));
+				else{
+					double t; sscanf(q.input(x).c_str(),"%lf",&t);
+					p.push_back((t==c[x].getMean()?cs.find(it->first)->second.size():1)*1.0/(cs.find(it->first)->second.size()+1));
+				}
+	//if(p.back()==0) record.push_back(p.back()); // debug
+	//if(p.back()==0) cout<<q.input(x)<<" "<<(c[x].isDiscrete() || c[x].getVar()!=0)<<" "<<c[x].dp(q.input(x))<<" "<<c[x].info()<<endl; // debug
 			}
+			double t=safeSumLog(p,0,p.size());
+			if(printClasses) cout<<" "<<it->first<<" "<<t<<endl;
+			if(t>rtvp || rtv==""){ rtvp=t; rtv=it->first; }
+	//record.push_back(-1); // debug
 		}
+	//if(1/rtvp==0){ for(size_t x=0,xs=record.size();x<xs;x++) cout<<" "<<record[x]; cout<<endl; } // debug
 		return rtv;
 	}
 	void printcp()const // debug
@@ -402,6 +422,60 @@ public:
 	{
 		auto it=fs.find(c);
 		return it==fs.end()?vector<cdf>(0):it->second;
+	}
+};
+
+class itvl // interval
+{
+public:
+	double b,e;
+	itvl(){}
+	itvl(double begi,double ende){reset(begi,ende);}
+	void reset(double begi,double ende){b=begi;e=ende;}
+};
+class itvls
+{
+	vector<itvl> v;
+public:
+	itvls(){}
+	itvls(const vector<double> &rhs){reset(rhs);}
+	void reset(const vector<double> &rhs)
+	{
+		double mid,min,max;
+		{
+			vector<double> tmp=rhs; sort(tmp.begin(),tmp.end());
+			mid=((tmp.size()&1)==0)?(tmp[tmp.size()>>1]+tmp[(tmp.size()>>1)+1])*0.5:tmp[tmp.size()>>1];
+			min=tmp[0];
+			max=tmp.back();
+		}
+		double mean=safeSum(rhs,0,rhs.size())/rhs.size();
+		vector<double> shf(rhs.size()); for(size_t x=shf.size();x--;) shf[x]=rhs[x]-mean;
+		double var=safeSumSqr(shf,0,shf.size())/shf.size();
+		if(var<=0) return;
+		double sd=sqrt(var);
+		double len=sd;
+		double base=mid+len/2;
+		int b=floor((min-mid)/len)-11;
+		int e=ceil((max-mid)/len)+11;
+		vector<double> cp; // cut point
+		for(int x=b;x<e;x++) cp.push_back(base+x*len);
+		vector<size_t> cnt(cp.size(),0); // [cut point,next cut point)
+		for(size_t x=rhs.size();x--;) cnt[(upper_bound(cp.begin(),cp.end(),rhs[x])-cp.begin())-1]++;
+		vector<double> newcp;
+		bool zerostrt=0;
+		size_t x=0,xs=cnt.size();
+		for(;x<xs;x++) if(cnt[x]) break; else newcp.push_back(cp[x]);
+		size_t qq=x;
+		for(;x<xs;x++) if(cnt[x]) newcp.push_back(cp[x]);
+		for(;x--;) if(cnt[x]) break;
+		for(x++;qq<x&&x<xs;x++) newcp.push_back(cp[x]);
+		for(size_t x=1,xs=newcp.size();x<xs;x++) v.push_back(itvl(newcp[x-1],newcp[x]));
+		v.push_back(itvl(newcp.back(),base+e*len));
+	}
+	const vector<itvl> &getinfo()const{return v;}
+	alldata mapto(const alldata &rhs,const vector<size_t> &attrs)const
+	{
+		
 	}
 };
 
