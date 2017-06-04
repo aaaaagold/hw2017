@@ -85,7 +85,7 @@ const double M_SQRT1_Exp=sqrt(1/exp(1));
 #ifndef M_SQRT1_2Pi
 const double M_SQRT1_2Pi=sqrt(0.125/atan(1));
 #endif
-const double veryLarge=64;
+const double veryLarge=1e11;
 const double verySmall=1/veryLarge;
 const double verySmall_minus1=verySmall-1;
 inline double smallp(double value){return exp(-value*veryLarge);} // [0,inf)
@@ -181,7 +181,7 @@ public:
 		else{ double t; if(sscanf(c.c_str(),"%lf",&t)==1) return p(t); }
 		return 1;
 	}
-	void setBest(const vector<double> &rhs)
+	void setBest(const vector<double> &rhs,const vector<cdftype> &omit=vector<cdftype>(0))
 	{
 		_isDiscrete=0;
 		cc.clear();
@@ -199,11 +199,13 @@ public:
 		double err=tmp.size();
 		for(cdftype t=(cdftype)(0);t!=cdftype::size;t=cdftype(t+1))
 		{
+			{ bool f=0; for(int x=omit.size();x--;)if(t==omit[x]){f=1; break;} if(f)continue; }
 			f=t;
 			vector<double> tmperr;
 			for(size_t x=tmp.size();x--;) tmperr.push_back((double)(x+1)/tmp.size()-p(tmp[x]));
 			double e=safeSumSqr(tmperr,0,tmperr.size());
 			if(e<err){err=e;c=f;}
+			// if(t==cdftype::normal && tmperr.size()<11) break;
 		}
 		f=c;
 	}
@@ -250,6 +252,7 @@ public:
 		cs.clear();
 		size_t attrSize=head.iv.size();
 		size_t attrContCnt=0; for(size_t x=head.iv.size();x--;) attrContCnt+=head.iv[x].isNumber();
+		vector<cdftype> omit; // if(attrContCnt>9){omit.push_back(cdftype::uqua);omit.push_back(exponent);}
 		total=0;
 		// set cs
 		for(size_t x=head.o.size();x--;) cs[head.o[x] ].resize(0); // create entry
@@ -284,7 +287,7 @@ public:
 						if(sscanf(DATA[x].input(i).c_str(),"%lf",&d)==1) t.push_back(d);
 					}
 					// set F
-					if(t.size()!=1) F[i].setBest(t);
+					if(t.size()!=1) F[i].setBest(t,omit);
 					else F[i].setMean(t[0]);
 				}
 				else
