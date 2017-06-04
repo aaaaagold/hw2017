@@ -17,28 +17,22 @@
 
 using namespace std;
 
-int main(const int argc,const char *argv[])
+bool opt_vd=0;
+bool opt_vn=0;
+bool opt_u =0;
+
+void test(const string &fnprefix,nb &xd,bool isTest=false)
 {
-	const string arg_qd="-qd"; // no print distinguish
-	const string arg_qn="-qn"; // no print nb info
-	bool opt_qd=0;
-	bool opt_qn=0;
-	for(int x=1;x<argc;x++)
-	{
-		if(arg_qd==argv[x]) opt_qd=1;
-		if(arg_qn==argv[x]) opt_qn=1;
-	}
-	
 	alldata tmp;
-	tmp.readAlldata(argv[1]);
+	tmp.readAlldata(fnprefix,isTest);
 	dataFormat &h=tmp.head;
-	nb xd(tmp.rv,h);
+	if(!isTest) xd.reset(tmp.rv,h);
 	size_t errCnt=0;
 	map<string,size_t> errCntEach; for(size_t x=h.o.getinfo().size();x--;) errCntEach[h.o.getinfo()[x] ]=0;
 	for(int x=0,xs=tmp.rv.size();x<xs;x++)
 	{
-		string c=xd.distinguish(tmp.rv[x],!opt_qd);
-		if(!opt_qd) cout<<tmp.rv[x].output()<<" -> "<<c<<endl<<endl;
+		string c=xd.distinguish(tmp.rv[x],opt_vd);
+		if(opt_vd) cout<<tmp.rv[x].output()<<" -> "<<c<<endl<<endl;
 		if(tmp.rv[x].output()!=c)
 		{
 			errCnt++;
@@ -49,7 +43,23 @@ int main(const int argc,const char *argv[])
 	cout<<"error in each class:\t";
 		for(auto it=errCntEach.begin();it!=errCntEach.end();it++) cout<<" "<<it->first<<":"<<it->second;
 	cout<<endl;
-	if(!opt_qn)
+}
+
+int main(const int argc,const char *argv[])
+{
+	const string arg_vd="-vd"; // no print distinguish
+	const string arg_vn="-vn"; // no print nb info
+	const string arg_u ="-u" ; // test unseen data
+	for(int x=1;x<argc;x++)
+	{
+		if(arg_vd==argv[x]) opt_vd=1;
+		if(arg_vn==argv[x]) opt_vn=1;
+		if(arg_u ==argv[x]) opt_u =1;
+	}
+	nb xd;
+	test(argv[1],xd);
+	if(opt_u ) test(argv[1],xd,1);
+	if(opt_vn)
 	{
 		xd.printcp();
 		xd.printfs();
