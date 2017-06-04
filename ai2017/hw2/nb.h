@@ -99,7 +99,7 @@ class cdf //  default: N(0,1)
 {
 	double mean,var,sd;
 	cdftype f;
-	bool isDiscrete;
+	bool _isDiscrete;
 	map<string,size_t> cc; // classes,counts
 	size_t total;
 public:
@@ -123,31 +123,32 @@ public:
 		return ((v*v>1)?(smallp(abs(v)-1)*1.5):((v*v*(-verySmall_minus1)+verySmall)*1.5))
 			*t/(1+verySmall*5);
 	} // mean,variance
-	cdf():f(cdftype::normal){setMV(0,1);isDiscrete=0;}
-	cdf(double m,double v,cdftype cf=cdftype::normal){f=cf;setMV(m,v);isDiscrete=0;}
-	cdf(const vector<double> &rhs){setBest(rhs);isDiscrete=0;}
-	cdf(const vector<string> &classv,const vector<string> &sample){setDiscrete(classv,sample);isDiscrete=1;}
+	cdf():f(cdftype::normal){setMV(0,1);}
+	cdf(double m,double v,cdftype cf=cdftype::normal){f=cf;setMV(m,v);}
+	cdf(const vector<double> &rhs){setBest(rhs);}
+	cdf(const vector<string> &classv,const vector<string> &sample){setDiscrete(classv,sample);}
 	void setDiscrete(const vector<string> &classv,const vector<string> &sample,size_t reWeightOnZero=1)
 	{
-		isDiscrete=1;
+		_isDiscrete=1;
 		for(int x=0,xs=classv.size();x<xs;x++) cc[classv[x]]=0;
 		total=0;
 		for(int x=0,xs=sample.size();x<xs;x++){ auto it=cc.find(sample[x]); if(it!=cc.end()){ it->second+=1; total++; } }
 		bool haveZero=0; for(auto it=cc.begin();it!=cc.end();it++){ haveZero=1; break; }
 		if(haveZero){ total+=classv.size()*reWeightOnZero; for(auto it=cc.begin();it!=cc.end();it++) it->second+=reWeightOnZero; }
 	}
-	double p(const string &c)const
+	double p_discrete(const string &c)const
 	{
 		auto it=cc.find(c);
-		return it!=cc.end()?1.0*(cc.find(c)->second)/total:0;
+		return it!=cc.end()?1.0*(cc.find(c)->second)/total:1;
 	}
-	inline void setMean(double m){mean=m;}
+	inline void setMean(double m){mean=m;_isDiscrete=0;}
 	inline double getMean()const{return mean;}
-	inline void setVar(double v){var=v;sd=sqrt(var);}
+	inline void setVar(double v){var=v;sd=sqrt(var);_isDiscrete=0;}
 	inline double getVar()const{return var;}
 	inline void setMV(double m,double v){setMean(m);setVar(v);}
 	inline void setType(const cdftype t){f=t;}
 	inline cdftype getType()const{return f;}
+	inline bool isDiscrete()const{return _isDiscrete;}
 	double dp(double v)const
 	{
 		double rtv=0;
@@ -174,9 +175,15 @@ public:
 		}
 		return rtv;
 	}
+	double p(const string &c)const
+	{
+		if(isDiscrete()) return p_discrete(c);
+		else{ double t; if(sscanf(c.c_str(),"%lf",&t)==1) return p(t); }
+		return 1;
+	}
 	void setBest(const vector<double> &rhs)
 	{
-		isDiscrete=0;
+		_isDiscrete=0;
 		cc.clear();
 		{
 			vector<sortByAbs<double> > tmp(rhs.size()); for(size_t x=tmp.size();x--;) tmp[x]=rhs[x];
@@ -200,6 +207,25 @@ public:
 		}
 		f=c;
 	}
+	string info()const
+	{
+		string rtv="isDiscrete:";
+		rtv+=isDiscrete()?"1":"0";
+		if(isDiscrete())
+		{
+			for(auto it=cc.begin();it!=cc.end();it++)
+			{
+				rtv+=" ";
+				rtv+=it->first;
+			}
+		}
+		else
+		{
+			rtv+=" type:";
+			rtv+=('0'+getType());
+		}
+		return rtv;
+	}
 };
 
 class nb
@@ -210,7 +236,7 @@ class nb
 	map<string,double> cp; // P(Class=c)
 	size_t total;
 public:
-	nb(){total=0;};
+	nb(){total=0;}
 	nb(const vector<row> &data){reset(data);}
 	nb(const vector<row> &data,const dataFormat &head){reset(data,head);}
 	void reset(const vector<row> &data,const dataFormat &head)
@@ -257,7 +283,7 @@ public:
 					vector<string> t;
 					for(size_t x=0,xs=DATA.size();x<xs;x++) t.push_back(DATA[x].input(i));
 					// set F
-					F[i].setDiscrete(head.o.getinfo(),t);
+					F[i].setDiscrete(head.iv[i].getinfo(),t);
 				}
 			}
 		}
@@ -312,11 +338,7 @@ public:
 		{
 			vector<double> p=vector<double>(1,cp[it->first]);
 			vector<cdf> &c=it->second;
-			for(size_t x=c.size();x--;)
-			{
-				double t;
-				if(sscanf(q.input(x).c_str(),"%lf",&t)==1) p.push_back(c[x].dp(t));
-			}
+			for(size_t x=c.size();x--;) p.push_back(c[x].p(q.input(x).c_str()));
 			{
 				double t=safeSumLog(p,0,p.size());
 				if(printClasses) cout<<" "<<it->first<<" "<<t<<endl;
@@ -324,9 +346,6 @@ public:
 			}
 		}
 		return rtv;
-	}
-	void learn_continuous(const vector<double> &n)
-	{
 	}
 	void printcp()const // debug
 	{
@@ -340,7 +359,7 @@ public:
 		{
 			cout<<" "<<it->first<<endl;
 			const vector<cdf> &t=it->second;
-			for(size_t x=0,xs=t.size();x<xs;x++) cout<<"  "<<setw(2)<<x<<" "<<t[x].getType()<<endl;
+			for(size_t x=0,xs=t.size();x<xs;x++) cout<<"  "<<setw(2)<<x<<" "<<t[x].info()<<endl;
 		}
 	}
 	void printcssize()const // debug
