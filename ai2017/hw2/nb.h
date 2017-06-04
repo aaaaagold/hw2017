@@ -133,7 +133,7 @@ public:
 		for(int x=0,xs=classv.size();x<xs;x++) cc[classv[x]]=0;
 		total=0;
 		for(int x=0,xs=sample.size();x<xs;x++){ auto it=cc.find(sample[x]); if(it!=cc.end()){ it->second+=1; total++; } }
-		bool haveZero=0; for(auto it=cc.begin();it!=cc.end();it++){ haveZero=1; break; }
+		bool haveZero=0; for(auto it=cc.begin();it!=cc.end();it++) if(it->second==0){ haveZero=1; break; }
 		if(haveZero){ total+=classv.size()*reWeightOnZero; for(auto it=cc.begin();it!=cc.end();it++) it->second+=reWeightOnZero; }
 	}
 	double p_discrete(const string &c)const
@@ -213,10 +213,16 @@ public:
 		rtv+=isDiscrete()?"1":"0";
 		if(isDiscrete())
 		{
+			stringstream ss;
+			string s;
+			ss<<total; ss>>s;
+			rtv+=" "; rtv+=s;
 			for(auto it=cc.begin();it!=cc.end();it++)
 			{
-				rtv+=" ";
-				rtv+=it->first;
+				stringstream ss;
+				rtv+=" "; rtv+=it->first; rtv+=":";
+				ss<<(it->second); ss>>s;
+				rtv+=s;
 			}
 		}
 		else
@@ -256,7 +262,10 @@ public:
 			}
 		}
 		// set cp
-		for(auto it=cs.begin();it!=cs.end();it++) cp[it->first]=it->second.size()*1.0/total;
+		{
+			double t=total; t=1/t;
+			for(auto it=cs.begin();it!=cs.end();it++) cp[it->first]=it->second.size()*t;
+		}
 		// set fs
 		for(auto it=cs.begin();it!=cs.end();it++)
 		{
@@ -336,7 +345,7 @@ public:
 		double rtvp=0;
 		for(auto it=fs.begin();it!=fs.end();it++)
 		{
-			vector<double> p=vector<double>(1,cp[it->first]);
+			vector<double> p=vector<double>(1,(cp[it->first]));
 			vector<cdf> &c=it->second;
 			for(size_t x=c.size();x--;) p.push_back(c[x].p(q.input(x).c_str()));
 			{
@@ -350,7 +359,10 @@ public:
 	void printcp()const // debug
 	{
 		cout<<"cp"<<endl;
-		for(auto it=cp.begin();it!=cp.end();it++) cout<<" "<<it->first<<" "<<it->second<<endl;
+		size_t maxLen=0;
+		for(auto it=cp.begin();it!=cp.end();it++) if(maxLen<it->first.size()) maxLen=it->first.size();
+		maxLen++;
+		for(auto it=cp.begin();it!=cp.end();it++) cout<<" "<<it->first<<setw(maxLen-(it->first.size()))<<" "<<it->second<<" "<<(cs.find(it->first)->second.size())<<endl;
 	}
 	void printfs()const // debug
 	{
