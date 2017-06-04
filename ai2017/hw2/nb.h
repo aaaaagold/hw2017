@@ -85,7 +85,7 @@ const double M_SQRT1_Exp=sqrt(1/exp(1));
 #ifndef M_SQRT1_2Pi
 const double M_SQRT1_2Pi=sqrt(0.125/atan(1));
 #endif
-const double veryLarge=32;
+const double veryLarge=64;
 const double verySmall=1/veryLarge;
 const double verySmall_minus1=verySmall-1;
 inline double smallp(double value){return exp(-value*veryLarge);} // [0,inf)
@@ -197,7 +197,7 @@ public:
 		vector<double> tmp=rhs; sort(tmp.begin(),tmp.end());
 		cdftype c;
 		double err=tmp.size();
-		for(cdftype t;t!=cdftype::size;t=cdftype(t+1))
+		for(cdftype t=(cdftype)(0);t!=cdftype::size;t=cdftype(t+1))
 		{
 			f=t;
 			vector<double> tmperr;
@@ -249,6 +249,7 @@ public:
 	{
 		cs.clear();
 		size_t attrSize=head.iv.size();
+		size_t attrContCnt=0; for(size_t x=head.iv.size();x--;) attrContCnt+=head.iv[x].isNumber();
 		total=0;
 		// set cs
 		for(size_t x=head.o.size();x--;) cs[head.o[x] ].resize(0); // create entry
@@ -359,10 +360,25 @@ public:
 	void printcp()const // debug
 	{
 		cout<<"cp"<<endl;
-		size_t maxLen=0;
-		for(auto it=cp.begin();it!=cp.end();it++) if(maxLen<it->first.size()) maxLen=it->first.size();
-		maxLen++;
-		for(auto it=cp.begin();it!=cp.end();it++) cout<<" "<<it->first<<setw(maxLen-(it->first.size()))<<" "<<it->second<<" "<<(cs.find(it->first)->second.size())<<endl;
+		size_t maxClassLen=0;
+		{
+			for(auto it=cp.begin();it!=cp.end();it++) if(maxClassLen<it->first.size()) maxClassLen=it->first.size();
+			maxClassLen++;
+		}
+		size_t maxCntLen=0;
+		{
+			string s;
+			for(auto it=cs.begin();it!=cs.end();it++)
+			{
+				stringstream ss; ss<<(it->second.size()); ss>>s;
+				if(maxCntLen<s.size()) maxCntLen=s.size();
+			}
+		}
+		for(auto it=cp.begin();it!=cp.end();it++)
+			cout<<" "<<it->first<<setw(maxClassLen-(it->first.size()))
+				<<" "<<setw(maxCntLen)<<(cs.find(it->first)->second.size())
+				<<" "<<it->second
+				<<endl;
 	}
 	void printfs()const // debug
 	{
