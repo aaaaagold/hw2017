@@ -229,14 +229,14 @@ public:
 		}
 		return rtv;
 	}
-	void readAlldata(const string &fnprefix)
+	void readAlldata(const string &fnprefix,bool test=false)
 	{
 		string tmpstr;
 		tmpstr=fnprefix; tmpstr+=".names";
 		head.readNames(tmpstr);
 		for(int x=0,xs=head.iv.size();x<xs;x++){ head.iv[x].sort(); }
 		{ head.o.sort(); }
-		tmpstr=fnprefix; tmpstr+=".data";
+		tmpstr=fnprefix; tmpstr+=test?".test":".data";
 		{
 			ifstream iii(tmpstr.c_str(),ios::binary);
 			vector<string> lines;
@@ -254,6 +254,7 @@ public:
 			}
 		}
 	}
+	void readAlldataTest(const string &fnprefix){readAlldata(fnprefix,1);}
 	void convert() // continuous -> discrete
 	{
 		vector<dataType> &iv=head.iv;
