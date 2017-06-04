@@ -254,6 +254,16 @@ public:
 			}
 		}
 	}
+	void convert() // continuous -> discrete
+	{
+		vector<dataType> &iv=head.iv;
+		for(size_t i=iv.size();i--;) if(iv[i].isNumber()){
+			for(size_t x=rv.size();x--;)
+			{
+				
+			}
+		}
+	}
 	void tofile(const string &fn)const
 	{
 		ofstream ooo(fn.c_str(),ios::binary);
