@@ -23,7 +23,7 @@ bool opt_u =0;
 
 void test(const string &fnprefix,nb &xd,bool isTest=false)
 {
-	cout<<(isTest?".test":".data")<<endl;
+	cout<<fnprefix<<(isTest?".test":".data")<<endl;
 	alldata tmp;
 	tmp.readAlldata(fnprefix,isTest);
 	dataFormat &h=tmp.head;
