@@ -23,6 +23,7 @@ bool opt_u =0;
 
 void test(const string &fnprefix,nb &xd,bool isTest=false)
 {
+	cout<<(isTest?".test":".data")<<endl;
 	alldata tmp;
 	tmp.readAlldata(fnprefix,isTest);
 	dataFormat &h=tmp.head;
@@ -40,6 +41,8 @@ void test(const string &fnprefix,nb &xd,bool isTest=false)
 		}
 	}
 	cout<<"error:"<<errCnt<<" total:"<<tmp.rv.size()<<endl;
+	cout<<"error rate: "<<errCnt*1.0/tmp.rv.size()<<endl;
+	cout<<"accurency: "<<1-errCnt*1.0/tmp.rv.size()<<endl;
 	cout<<"error in each class:\t";
 		for(auto it=errCntEach.begin();it!=errCntEach.end();it++) cout<<" "<<it->first<<":"<<it->second;
 	cout<<endl;
