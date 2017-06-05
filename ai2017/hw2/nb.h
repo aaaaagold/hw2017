@@ -367,7 +367,7 @@ public:
 				if(c[x].isDiscrete() || c[x].getVar()!=0) p.push_back(c[x].dp(q.input(x)));
 				else{
 					double t; sscanf(q.input(x).c_str(),"%lf",&t);
-					p.push_back((t==c[x].getMean()?cs.find(it->first)->second.size():1)*1.0/(cs.find(it->first)->second.size()+1));
+					p.push_back((t==c[x].getMean()?cs.find(it->first)->second.size()+1:1)*1.0/(cs.find(it->first)->second.size()+2));
 				}
 	//if(p.back()==0) record.push_back(p.back()); // debug
 	//if(p.back()==0) cout<<q.input(x)<<" "<<(c[x].isDiscrete() || c[x].getVar()!=0)<<" "<<c[x].dp(q.input(x))<<" "<<c[x].info()<<endl; // debug
