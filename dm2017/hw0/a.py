@@ -2,9 +2,11 @@
 from __future__ import print_function
 import sys
 import time as tm
+import numpy as np
 import datetime as dtm
 import matplotlib.pyplot as plt
 from geopy.distance import great_circle
+from sklearn import linear_model
 from sklearn.metrics.pairwise import pairwise_distances
 pd_strt=tm.time()
 import pandas as pd
@@ -129,6 +131,18 @@ def q3(pdf,head,n=3):
 		print(t)
 	print()
 
+def drawPNG(fname,idx,arri,arro,xtick_chosen,xtick_name,ylabel,title):
+	plt.figure(figsize=(64,13))
+	plt.xticks(xtick_chosen,xtick_name,rotation=90)
+	plt.tick_params(axis='x',labelsize=8)
+	plt.plot_date(idx,arri,label= 'in_flow_count',color='green',alpha=0.5,linewidth=2.5,linestyle='-')
+	plt.plot_date(idx,arro,label='out_flow_count',color='red'  ,alpha=0.5,linewidth=2.5,linestyle='-')
+	plt.legend(loc='best')
+	plt.ylabel(ylabel)
+	plt.title(title)
+	plt.savefig(fname,dpi=64,pad_inches=1)
+	print('## output to',fname,'done')
+
 def q4(pdf,head):
 	print('q4')
 	# get pop
@@ -143,9 +157,10 @@ def q4(pdf,head):
 	arri=popdf[ 'in_flow_count'].values
 	arro=popdf['out_flow_count'].values
 	# line chart:	inf(A), outf(B)
-	fname='q4a.png'
 	ts=[t.isoformat(' ') for t in dts]
 	idx=range(len(ts))
+	'''
+	fname='q4a.png'
 	plt.figure(figsize=(64,13))
 	plt.xticks(idx[0::4],ts,rotation=90)
 	plt.tick_params(axis='x',labelsize=8)
@@ -156,32 +171,32 @@ def q4(pdf,head):
 	plt.title('in/out flow counts of the most popular station')
 	plt.savefig(fname,dpi=64,pad_inches=1)
 	print('## output to',fname)
-	return # IDK 'distFunc'
+	'''
+	i=arri
+	o=arro
+	drawPNG('q4a.png',idx,i,o,idx[::4],ts,'flow count','in/out flow counts of the most popular station')
 	# distFunc(A,B)
-	print('# distFunc(A,B)')
-	mtx=pairwise_distances(
-		arri,
-		arro,
-		n_jobs=1)
-	print(mtx)
+	print('# distFunc(A,B)',pairwise_distances([i,o])[1][0])
 	# distFunc(A-mean(A),B-mean(B))
-	print('# distFunc(A-mean(A),B-mean(B))')
-	mtx_sf=pairwise_distances(
-		arri-arri.mean(),
-		arro-arro.mean(),
-		n_jobs=1)
-	print(mtx_sf)
+	i=arri-arri.mean()
+	o=arro-arro.mean()
+	print('# dist(A-mean(A),B-mean(B)) =',pairwise_distances([i,o])[1][0])
+	drawPNG('q4c.png',idx,i,o,idx[::4],ts,'flow count - mean','"in/out flow counts - mean" of the most popular station')
 	# distFunc((A-mean(A))/std(A),(B-mean(B))/std(B))
-	print('# distFunc((A-mean(A))/std(A),(B-mean(B))/std(B))')
-	mtx_nm=pairwise_distances(
-		(arri-arri.mean())/arri.std(),
-		(arro-arro.mean())/arri.std(),
-		n_jobs=1)
-	print(mtx_nm)
+	i=(arri-arri.mean())/arri.std()
+	o=(arro-arro.mean())/arri.std()
+	print('# dist((A-mean(A))/std(A),(B-mean(B))/std(B)) =',pairwise_distances([i,o])[1][0])
+	drawPNG('q4d.png',idx,i,o,idx[::4],ts,'( flow count - mean ) / std','"(in/out flow counts - mean ) / std" of the most popular station')
 	# linearRegression(A,B)
 	print('# linearRegression(A,B)')
 	# disFunc(smooth(A),smooth(B)) # A(i)=(A(i-1)+A(i)+A(i+1))/3 or more elements
-	print('# disFunc(smooth(A),smooth(B))')
+	i=(arri+np.concatenate([[arri[0]],arri[:-1]])+np.concatenate([arri[1:],[arri[-1]]]))/3.0
+	o=(arro+np.concatenate([[arro[0]],arro[:-1]])+np.concatenate([arro[1:],[arro[-1]]]))/3.0
+	print('# disFunc(smooth(A),smooth(B)) =',pairwise_distances([i,o])[1][0])
+	print('## smooth(A_(  i  ))==(A_( i-1 )+A_(  i  )+A_( i+1 ))/3')
+	print('## smooth(A_(first))==(A_(first)*2+A_(first+1))/3')
+	print('## smooth(A_( last))==(A_( last)*2+A_( last-1))/3')
+	drawPNG('q4f.png',idx,i,o,idx[::4],ts,'smooth(flow count)','smooth(in/out flow counts) of the most popular station')
 	print()
 
 def queries(df,head):
