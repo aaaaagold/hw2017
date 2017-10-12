@@ -146,7 +146,8 @@ def drawPNG(fname,idx,arri,arro,xtick_chosen,xtick_name,ylabel,title):
 def q4(pdf,head):
 	print('q4')
 	# get pop
-	pop=pd.DataFrame(data={'station_id':pdf['station_id'],'flow_count':pdf['out_flow_count']+pdf['in_flow_count']}).groupby('station_id')
+	#pop=pd.DataFrame(data={'station_id':pdf['station_id'],'flow_count':pdf['out_flow_count']+pdf['in_flow_count']}).groupby('station_id')
+	pop=pd.concat([pd.DataFrame(data={'station_id':pdf['station_id'],'flow_count':pdf['out_flow_count']}),pd.DataFrame(data={'station_id':pdf['station_id'],'flow_count':pdf['in_flow_count']})],ignore_index=True).groupby('station_id')
 	pop=pop['flow_count'].agg('sum').reset_index(name='flow_mean').sort_values('flow_mean',ascending=False).head(1)
 	pop['flow_mean']=pop['flow_mean'].map(lambda x: 1.0*x/(31*48))
 	popid=pop['station_id'].values[0]
