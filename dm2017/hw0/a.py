@@ -263,10 +263,11 @@ if __name__=='__main__':
 
 try:
 	from IPython.display import Image,display
-	imgs=[]
+	out=[]
 	for s in 'acdef':
-		imgs.append(Image('q4'+s+'.png'))
-	display(*imgs)
+		out.append('q4'+s+'.png')
+		out.append(Image(out[-1]))
+	display(*out)
 except:
 	pass
 
