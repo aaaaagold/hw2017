@@ -45,12 +45,11 @@ def getHeader(fname):
 	with open(fname,'rb') as f:
 		return parseLine(f.readline()).split(sb(','))
 
-def readfilePart(head,fname,s,r):
-	return pd.read_csv(fname,names=head,header=0,usecols=head,nrows=r,skiprows=s)
+def readfilePart(fname,s,r):
+	return pd.read_csv(fname,header=0,nrows=r,skiprows=s)
 
 def readfile(fname,s=None,r=None):
-	h=getHeader(fname)
-	return readfilePart(h,fname,s,r)
+	return readfilePart(fname,s,r)
 
 def checking(fname):
 	print('checking:')
