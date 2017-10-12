@@ -106,6 +106,7 @@ def q1(df,head):
 	print('# avg(dist(stations)) =',mean)
 	print()
 	rtv=ss[['lat','long']]
+	rtv.index.name='station_id'
 	rtv.to_csv('preprocess.csv')
 	return rtv
 
