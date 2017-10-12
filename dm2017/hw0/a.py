@@ -55,7 +55,7 @@ def checking(fname):
 		zz=df[sel[1:2]].groupby(sel[1:2]).size().reset_index(name='cnt')
 		print('## groupby',sel[1:2],' count =',zz[['cnt']].count().values[0])
 		print('## invalid name =',['','NA','N/A','NULL','Null','null'])
-		print('## invalid name counts ',xx[(xx[sel[1:2]]=='')|(xx[sel[1:2]]=='NA')|(xx[sel[1:2]]=='N/A')|(xx[sel[1:2]]=='NULL')|(xx[sel[1:2]]=='Null')|(xx[sel[1:2]]=='null')][['cnt']].count().values[0])
+		print('## invalid name counts ',xx[(xx[sel[1]]=='')|(xx[sel[1]]=='NA')|(xx[sel[1]]=='N/A')|(xx[sel[1]]=='NULL')|(xx[sel[1]]=='Null')|(xx[sel[1]]=='null')][['cnt']].count().values[0])
 	print('# station long/lat-itude min/max:')
 	for sel in ['"start station longitude"','"start station latitude"','"end station longitude"','"end station latitude"']:
 		print('## max',df[[sel]].max().values[0])
@@ -237,4 +237,3 @@ if __name__=='__main__':
 	print(phead)
 	#print(df)
 	print(head)
-
