@@ -105,7 +105,9 @@ def q1(df,head):
 	mean=sum([sum([great_circle(arr[j],arr[i]).meters for i in lll]) for j in lll])/(len(lll)**2)
 	print('# avg(dist(stations)) =',mean)
 	print()
-	return ss[['lat','long']]
+	rtv=ss[['lat','long']]
+	rtv.to_csv('preprocess.csv')
+	return rtv
 
 def q2(df,head,n=3):
 	print('q2')
@@ -190,6 +192,16 @@ def q4(pdf,head):
 	drawPNG('q4d.png',idx,i,o,idx[::4],ts,'( flow count - mean ) / std','"(in/out flow counts - mean ) / std" of the most popular station')
 	# linearRegression(A,B)
 	print('# linearRegression(A,B)')
+	x=[[x,1] for x in idx]
+	regi = linear_model.LinearRegression()
+	regi.fit(x,arri)
+	i=arri-np.array(idx)*regi.coef_[0]+regi.coef_[1]
+	print('##  in-flow',regi.coef_)
+	rego = linear_model.LinearRegression()
+	rego.fit(x,arro)
+	o=arro-np.array(idx)*rego.coef_[0]+rego.coef_[1]
+	print('## out-flow',rego.coef_)
+	drawPNG('q4e.png',idx,i,o,idx[::4],ts,' Flow_i - F(i) ) ','" in/out - F_in/out(i) " of the most popular station')
 	# disFunc(smooth(A),smooth(B)) # A(i)=(A(i-1)+A(i)+A(i+1))/3 or more elements
 	i=(arri+np.concatenate([[arri[0]],arri[:-1]])+np.concatenate([arri[1:],[arri[-1]]]))/3.0
 	o=(arro+np.concatenate([[arro[0]],arro[:-1]])+np.concatenate([arro[1:],[arro[-1]]]))/3.0
