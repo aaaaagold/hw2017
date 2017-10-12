@@ -1,4 +1,5 @@
 #!
+from __future__ import division
 from __future__ import print_function
 import sys
 import time as tm
@@ -12,6 +13,14 @@ pd_strt=tm.time()
 import pandas as pd
 pd_ende=tm.time()
 print("pandas loading time:",(pd_ende-pd_strt),"sec.")
+
+def sb(s,e='UTF-8'):
+	try:
+		rtv=bytes(s,e)
+	except:
+		rtv=bytes(s)
+	
+	return rtv
 
 def calt(foo,*arg,**kwarg):
 	t0=tm.time()
@@ -34,7 +43,7 @@ def parseLine(s):
 
 def getHeader(fname):
 	with open(fname,'rb') as f:
-		return parseLine(f.readline()).split(',')
+		return parseLine(f.readline()).split(sb(','))
 
 def readfilePart(head,fname,s,r):
 	return pd.read_csv(fname,names=head,header=0,usecols=head,nrows=r,skiprows=s)
@@ -46,8 +55,9 @@ def readfile(fname,s=None,r=None):
 def checking(fname):
 	print('checking:')
 	df=readfile(fname)
+	head=df.columns.values
 	print('# station id,name checks:')
-	for sel in [['"start station id"','"start station name"'],['"end station id"','"end station name"']]:
+	for sel in [[head[3],head[4]],[head[7],head[8]]]:
 		xx=df[sel].groupby(sel).size().reset_index(name='cnt')
 		print('## groupby',sel,' count =',xx[['cnt']].count().values[0])
 		zz=df[sel[0:1]].groupby(sel[0:1]).size().reset_index(name='cnt')
@@ -57,9 +67,9 @@ def checking(fname):
 		print('## invalid name =',['','NA','N/A','NULL','Null','null'])
 		print('## invalid name counts ',xx[(xx[sel[1]]=='')|(xx[sel[1]]=='NA')|(xx[sel[1]]=='N/A')|(xx[sel[1]]=='NULL')|(xx[sel[1]]=='Null')|(xx[sel[1]]=='null')][['cnt']].count().values[0])
 	print('# station long/lat-itude min/max:')
-	for sel in ['"start station longitude"','"start station latitude"','"end station longitude"','"end station latitude"']:
-		print('## max',df[[sel]].max().values[0])
-		print('## min',df[[sel]].min().values[0])
+	for sel in [head[5],head[6],head[9],head[10]]:
+		print('## max',df[sel].max())
+		print('## min',df[sel].min())
 		xx=pd.isnull(df[[sel]])
 		print('## count(isnull) ',xx[xx[sel]==True].count().values[0])
 	print()
@@ -70,8 +80,8 @@ def preprocess(df,head):
 	#df['_idx']=df.index
 	for sel in head[1:3]:
 		df[sel]=pd.to_datetime(df[sel])
-		#df[sel+'-split48']=df[sel].map(lambda x: [(x.month<<11)+(x.day<<5)+(x.day<<4)+(x.hour<<1)+(x.minute/30),x.dayofweek])
-		df[sel+'-split48']=df[sel].map(lambda x: dtm.datetime(x.year,x.month,x.day,x.hour,(x.minute/30)*30))
+		#df[sel+'-split48']=df[sel].map(lambda x: [(x.month<<11)+(x.day<<5)+(x.day<<4)+(x.hour<<1)+(x.minute//30),x.dayofweek])
+		df[sel+'-split48']=df[sel].map(lambda x: dtm.datetime(x.year,x.month,x.day,x.hour,(x.minute//30)*30))
 		df[sel+'-isWeekend']=df[sel].map(lambda x: x.weekday()>4)
 	sel_out=[head[3]]+[head[1]+'-split48']
 	sel_in =[head[7]]+[head[2]+'-split48']
@@ -250,3 +260,4 @@ if __name__=='__main__':
 	print(phead)
 	#print(df)
 	print(head)
+
