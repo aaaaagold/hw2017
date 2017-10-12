@@ -228,17 +228,16 @@ def queries(df,head):
 
 
 if __name__=='__main__':
+	'''
 	if len(sys.argv)!=2:
 		print("usage:  "+sys.argv[0]+"  csvFile")
 		exit(1)
 	'''
-	data=caltr(readfile,sys.argv[1])
-	head=data.columns.values
-	calt(print,data)
-	print(head)
-	for i in range(len(head)): print(i,head[i])
-	'''
-	df=caltr(checking,sys.argv[1])
+	try:
+		df=caltr(checking,sys.argv[1])
+	except:
+		df=caltr(checking,'201707-citibike-tripdata.csv')
+	
 	head=df.columns.values
 	
 	pdf=caltr(preprocess,df,head)
@@ -255,8 +254,19 @@ if __name__=='__main__':
 	
 	# pop station
 	calt(q4,pdf,head)
-	
+	'''
 	print(phead)
 	#print(df)
 	print(head)
+	'''
+
+
+try:
+	from IPython.display import Image,display
+	imgs=[]
+	for s in 'acdef':
+		imgs.append(Image('q4'+s+'.png'))
+	display(*imgs)
+except:
+	pass
 
