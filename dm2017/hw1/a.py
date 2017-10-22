@@ -74,23 +74,25 @@ def checking(fname):
 	print()
 	return df
 
-def preprocess(df,head):
-	print('preprocessing')
+def getStationTimeFlows(df,head):
+	print("preparing  [ 'id' , 'time' , 'in-flow' , 'out-flow' ] ...")
+	sid='id'
+	flowi='in-flow'
+	flowo='out-flow'
+	rtv=pd.DataFrame(data=df[[head[1],head[2],head[3],head[7],]])
 	#df['_idx']=df.index
 	for sel in head[1:3]:
-		df[sel]=pd.to_datetime(df[sel])
-		#df[sel+'-split48']=df[sel].map(lambda x: [(x.month<<11)+(x.day<<5)+(x.day<<4)+(x.hour<<1)+(x.minute//30),x.dayofweek])
-		df[sel+'-split48']=df[sel].map(lambda x: dtm.datetime(x.year,x.month,x.day,x.hour,(x.minute//30)*30))
-		df[sel+'-isWeekend']=df[sel].map(lambda x: x.weekday()>4)
+		rtv[sel]=pd.to_datetime(rtv[sel])
+		rtv[sel+'-split48']=rtv[sel].map(lambda x: dtm.datetime(x.year,x.month,x.day,x.hour,(x.minute//30)*30))
 	sel_out=[head[3]]+[head[1]+'-split48']
 	sel_in =[head[7]]+[head[2]+'-split48']
-	o=df[sel_out].groupby(sel_out).size().reset_index(name='out_flow_count')
-	o['station_id']=o[sel_out[0]]
-	o['time'      ]=o[sel_out[1]]
-	i=df[sel_in ].groupby(sel_in ).size().reset_index(name= 'in_flow_count')
-	i['station_id']=i[sel_in [0]]
-	i['time'      ]=i[sel_in [1]]
-	return pd.merge(o,i,how='outer',on=['station_id','time'])[['station_id','time','out_flow_count','in_flow_count']].fillna(0)
+	o=rtv[sel_out].groupby(sel_out).size().reset_index(name=flowo)
+	o[sid   ]=o[sel_out[0]]
+	o['time']=o[sel_out[1]]
+	i=rtv[sel_in ].groupby(sel_in ).size().reset_index(name=flowi)
+	i[sid   ]=i[sel_in [0]]
+	i['time']=i[sel_in [1]]
+	return pd.merge(o,i,how='outer',on=[sid,'time'])[[sid,'time',flowi,flowo]].fillna(0)
 
 def getStationNameAndPosition(df,head):
 	print("preparing [ 'id' , 'name' , 'lat' , 'long' ] ...")
@@ -120,7 +122,7 @@ def getStationNameAndPosition(df,head):
 	mean=sum([sum([great_circle(arr[j],arr[i]).meters for i in lll]) for j in lll])/(len(lll)**2)
 	print('# avg(dist(stations)) =',mean)
 	print()
-	rtv.index.name='station_id'
+	rtv.index.name='id'
 	rtv.to_csv('preprocess.csv')
 	return rtv
 
@@ -220,13 +222,13 @@ if __name__=='__main__':
 		df=caltr(checking,'201707-citibike-tripdata.csv')
 	
 	head=df.columns.values
-	print(head)
 	
-	#pdf=caltr(preprocess,df,head)
-	#phead=pdf.columns.values
+	stf=caltr(getStationTimeFlows,df,head)
+	tfhead=stf.columns.values
 	
-	# num(stations)
-	ss=caltr(getStationNameAndPosition,df,head)
+	snp=caltr(getStationNameAndPosition,df,head)
+	nphead=snp.columns.values
 	
-	print(ss)
+	print(snp)
+	print(stf)
 
